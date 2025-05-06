@@ -1,0 +1,24 @@
+{
+    "include": ["math"],
+    "program": {
+        "main": {
+            "body": [
+                {"echo": ["Hello, JsonLang!", "\n"]},
+                {"var": {"count": 0}},
+                {"while": {
+                    "condition": {
+                        "op": "lt",
+                        "left": "@var.count",
+                        "right": 3
+                    },
+                    "body": [
+                        {"echo": ["计数: ", "@var.count", "\n"]},
+                        {"math.add": ["@var.count", 1]},
+                        {"var": {"count": "@var.result"}},
+                        {"echo": ["更新后: ", "@var.count", "\n"]}
+                    ]
+                }}
+            ]
+        }
+    }
+}
