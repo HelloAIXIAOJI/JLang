@@ -1,312 +1,129 @@
 # JsonLang
 
-JsonLang 是一个基于 JSON 的简单编程语言，它使用 JSON 的语法结构来表达程序逻辑。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg)
+![Status: Experimental](https://img.shields.io/badge/Status-Experimental-blue.svg)
 
-## 图灵完备声明
+*A programming language based on JSON syntax - Now Turing complete!（Maybe?）*
 
-JsonLang 现在已经是图灵完备的编程语言，这意味着它理论上能够计算任何可计算的函数。通过支持条件分支、循环结构、递归能力、变量存储和基本运算，JsonLang 具备了完整的编程语言能力。
+[中文文档](README.zh.md)
 
-**注意**：JsonLang 最初是作为概念验证项目开发的，虽然现在已经图灵完备，但与成熟的编程语言相比仍有很大差距。我们欢迎您探索和学习，但请根据实际需求谨慎在生产环境中使用。（来自原作者的特别提醒）
+## What is JsonLang?
 
-## 特性
-
-- 完全基于 JSON 语法
-- 支持变量和常量
-- 支持字符串操作
-- 支持条件语句和循环结构
-- 支持函数定义和调用，包括递归函数
-- 支持多层嵌套数据结构访问
-- 函数局部变量作用域
-- 内置输出功能和注释系统
-- 模块化系统
-- 内置 IO 和数学运算模块
-- 支持执行系统命令
-
-## 安装
-
-确保您的系统已安装 Rust 开发环境，然后执行：
-
-```bash
-cargo build --release
-```
-
-## 运行程序
-
-### 基本运行
-
-```bash
-cargo run <程序文件路径>
-```
-
-例如：
-
-```bash
-cargo run examples/hello_world.jl
-```
-
-### 调试模式
-
-使用 `--debug` 参数可以启用调试模式，显示更多执行信息：
-
-```bash
-cargo run -- --debug examples/hello_world.jl
-```
-
-## 语言语法
-
-### 1. 程序结构
-
-一个完整的 JsonLang 程序包含以下部分：
+JsonLang is an experimental programming language that uses JSON as its syntax. It allows you to write programs using familiar JSON structures while providing programming capabilities like variables, loops, conditionals, and functions.
 
 ```json
 {
-    "include": ["模块1", "模块2"],
-    "const": {
-        "常量定义"
-    },
+    "include": ["math"],
     "program": {
         "main": {
             "body": [
-                "语句数组"
+                {"echo": ["Hello, JsonLang!", "\n"]},
+                {"var": {"count": 0}},
+                {"while": {
+                    "condition": {
+                        "op": "lt",
+                        "left": "@var.count",
+                        "right": 3
+                    },
+                    "body": [
+                        {"echo": ["Count: ", "@var.count", "\n"]},
+                        {"math.add": ["@var.count", 1]},
+                        {"var": {"count": "@var.result"}}
+                    ]
+                }}
             ]
-        },
-        "其他函数定义"
+        }
     }
 }
 ```
 
-### 2. 变量定义和使用
+## Features
 
-定义变量：
+- **JSON-based Syntax**: Write programs using familiar JSON format
+- **Variables and Constants**: Store and manipulate data
+- **Control Structures**: If-else statements, while loops, for loops
+- **Functions**: Define and call custom functions, including recursive functions
+- **Modules**: Import and use built-in or custom modules
+- **Weak Typing System**: Flexible type conversion, similar to PHP
+- **Nested Data Structures**: Access multi-level object properties
+- **System Command Execution**: Run external commands from JsonLang code
 
-```json
-{"var": {"变量名": "值"}}
+## Installation
+
+### Pre-compiled Binaries
+
+Download the latest version from the [releases page](https://github.com/HelloAIXIAOJI/JsonLang/releases).
+
+### Building from Source
+
+Ensure you have Rust installed, then:
+
+```bash
+git clone https://github.com/HelloAIXIAOJI/JsonLang.git
+cd JsonLang
+cargo build --release
 ```
 
-使用变量：
+The executable will be available at `target/release/jsonlang`.
 
-```json
-"@var.变量名"
-```
+## Quick Start
 
-支持多层嵌套访问：
-
-```json
-"@var.对象.属性.子属性"
-```
-
-### 3. 常量定义和使用
-
-在程序顶层定义：
-
-```json
-"const": {
-    "常量名": "值"
-}
-```
-
-使用常量：
-
-```json
-"@const.常量名"
-```
-
-### 4. 字符串拼接
-
-```json
-{"concat": {
-    "target": "结果变量名",
-    "parts": ["字符串1", "@var.变量名", "字符串2"]
-}}
-```
-
-### 5. 条件语句
-
-```json
-{"if": {
-    "condition": {
-        "op": "eq",  // 支持: eq, neq, gt, lt, gte, lte
-        "left": "值1",
-        "right": "值2"
-    },
-    "then": [
-        "语句数组"
-    ],
-    "else": [
-        "语句数组"
-    ]
-}}
-```
-
-### 6. 循环结构
-
-#### while 循环
-
-```json
-{"while": {
-    "condition": {
-        "op": "lt",
-        "left": "@var.counter",
-        "right": 5
-    },
-    "body": [
-        "语句数组"
-    ]
-}}
-```
-
-#### for 循环
-
-范围语法（推荐）：
-
-```json
-{"for": {
-    "var": "i",
-    "range": [1, 10],
-    "step": 1,  // 可选
-    "body": [
-        "语句数组"
-    ]
-}}
-```
-
-### 7. 函数定义和调用
-
-定义函数：
-
-```json
-"函数名": {
-    "params": {
-        "参数名": "类型"
-    },
-    "body": [
-        "语句数组"
-    ]
-}
-```
-
-调用函数（简化语法）：
-
-```json
-{"函数名": [参数1, 参数2]}
-```
-
-### 8. 注释系统
-
-单行注释：
-
-```json
-{"comment": "这是一个注释"}
-```
-
-多部分注释：
-
-```json
-{"comment": ["这是注释的一部分", "，变量值：", "@var.计数"]}
-```
-
-### 9. 输出语句
-
-```json
-{"echo": ["文本1", "@var.变量名", "文本2"]}
-```
-
-### 10. 执行系统命令
-
-```json
-{"exec": {
-    "cmd": "命令名",
-    "args": ["参数1", "参数2"],
-    "output": "结果变量名"  // 可选
-}}
-```
-
-执行系统命令并获取结果。在Windows上通过cmd执行，在Linux/Mac上通过sh执行。
-
-### 11. 特殊字符
-
-- `\n`: 换行
-- `\t`: 制表符
-- `\r`: 回车
-
-### 12. 模块系统
-
-#### 12.1 包含模块
-
-在程序顶层声明需要使用的模块：
+1. Create a file named `hello.jl` with:
 
 ```json
 {
-    "include": ["io", "math", "自定义模块名"]
-}
-```
-
-#### 12.2 调用模块函数
-
-简化语法（推荐）：
-
-```json
-{"模块名.函数名": [参数1, 参数2]}
-```
-
-例如：
-
-```json
-{"math.add": [1, 2, 3]}
-```
-
-#### 12.3 自定义模块
-
-您可以创建自己的 `.jl` 文件作为模块，并通过 `include` 包含它们。
-
-## 高级特性
-
-### 递归函数
-
-JsonLang 支持递归函数调用，可以实现复杂算法，如阶乘、斐波那契数列等。
-
-例如（递归实现阶乘）：
-
-```json
-"factorial": {
-    "params": {
-        "n": "number"
-    },
-    "body": [
-        {"if": {
-            "condition": {
-                "op": "lte",
-                "left": "@params.n",
-                "right": 1
-            },
-            "then": [
-                {"var": {"result": 1}}
-            ],
-            "else": [
-                {"factorial": ["@math.subtract", "@params.n", 1]},
-                {"var": {"sub_result": "@var.result"}},
-                {"var": {"result": "@math.multiply", "@params.n", "@var.sub_result"}}
+    "program": {
+        "main": {
+            "body": [
+                {"echo": ["Hello, World!\n"]}
             ]
-        }}
-    ]
+        }
+    }
 }
 ```
 
-### 函数作用域
+2. Run it:
 
-函数执行时会创建局部作用域，执行完成后：
-1. 局部变量不会保留
-2. 返回值存储在 `result` 变量中
-3. 新创建的全局变量会被保留
+```bash
+jsonlang hello.jl
+```
 
-## 文档
+## Documentation
 
-详细的语法文档请查看 [docs/syntax.md](docs/syntax.md)。
+For a comprehensive guide to JsonLang syntax and features, see:
 
-## 示例程序
+- [Syntax Documentation](docs/syntax_en.md): Detailed syntax reference
+- [Examples](docs/examples.md): Example programs demonstrating various features
 
-项目的 `examples/` 目录中包含了多个示例程序，展示了各种功能的使用方法。
+## Key Concepts
 
-## 许可证
+- Programs are structured as JSON objects with a `program` property
+- The `main` function is the entry point for execution
+- Variables are referenced using the `@var.` prefix
+- Module functions are called using `module_name.function_name` syntax
+- Statements are represented as JSON objects with a single property
 
-MIT License
+## Version History
+
+- **0.2.3**: Enhanced weak typing system, improved type conversion and comparison
+- **0.2.2**: Added system command execution capability
+- **0.2.1**: Added recursive function support and local variable scoping
+- **0.2.0**: Added comment system, enhanced module system, and multi-level data access
+- **0.1.0**: Initial version with basic functionality
+
+## Status
+
+JsonLang is experimental and not suitable for production use. While technically Turing complete, it was created as a programming experiment. Feel free to explore, learn, and contribute, but use mature languages for serious projects.
+
+## License
+
+JsonLang is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Contributing
+
+Contributions are welcome! Feel free to submit issues or pull requests.
+
+## Acknowledgments
+
+JsonLang was created by AIXIAOJI as a fun programming experiment during the 2023 Labor Day holiday.
