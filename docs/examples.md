@@ -21,10 +21,10 @@ A comprehensive demonstration of JsonLang's weak typing system, showing automati
 ## Function Examples
 
 ### [simplified_syntax_test.jl](../examples/simplified_syntax_test.jl)
-Shows the simplified syntax for function calls in JsonLang.
+Shows the simplified syntax for function calls in JsonLang, using direct syntax `{"function": [args]}` instead of `{"call": ["function", args]}`.
 
 ### [digui.jl](../examples/digui.jl), [digui2.jl](../examples/digui2.jl), [digui3.jl](../examples/digui3.jl), [digui4.jl](../examples/digui4.jl), [digui5.jl](../examples/digui5.jl)
-Various examples of recursive function implementations.
+Various examples of recursive function implementations, particularly focusing on the factorial calculation.
 
 ### [fibonacci.jl](../examples/fibonacci.jl)
 Implementation of the Fibonacci sequence calculation using recursive functions.
@@ -32,10 +32,10 @@ Implementation of the Fibonacci sequence calculation using recursive functions.
 ## Module System Examples
 
 ### [module_test.jl](../examples/module_test.jl)
-Demonstrates how to use the module system in JsonLang with standard module call syntax.
+Demonstrates how to use the module system in JsonLang with standard module call syntax: `{"call": ["module.function", args]}`.
 
 ### [simplified_module_test.jl](../examples/simplified_module_test.jl)
-Shows how to use the module system with simplified call syntax.
+Shows how to use the module system with simplified call syntax: `{"module.function": [args]}`.
 
 ### [utils.jl](../examples/utils.jl)
 An example of a utility module that can be imported by other programs.
@@ -62,10 +62,10 @@ Unix-specific example of executing system commands.
 ## Advanced Examples
 
 ### [taow.jl](../examples/taow.jl)
-A more complex program demonstrating multiple JsonLang features working together.
+A more complex program demonstrating multiple JsonLang features working together, including nested data structures and functions.
 
 ### [uni.jl](../examples/uni.jl)
-Demonstrates Unicode string handling in JsonLang.
+Demonstrates an infinite loop implementation, useful for understanding how to create and (manually) terminate long-running processes.
 
 ## Running the Examples
 

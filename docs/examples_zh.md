@@ -21,10 +21,10 @@
 ## 函数示例
 
 ### [simplified_syntax_test.jl](../examples/simplified_syntax_test.jl)
-展示了JsonLang中函数调用的简化语法。
+展示了JsonLang中函数调用的简化语法，使用直接语法 `{"函数": [参数]}` 而不是 `{"call": ["函数", 参数]}`。
 
 ### [digui.jl](../examples/digui.jl), [digui2.jl](../examples/digui2.jl), [digui3.jl](../examples/digui3.jl), [digui4.jl](../examples/digui4.jl), [digui5.jl](../examples/digui5.jl)
-各种递归函数实现的示例。
+各种递归函数实现的示例，特别关注阶乘计算。
 
 ### [fibonacci.jl](../examples/fibonacci.jl)
 使用递归函数实现斐波那契数列计算。
@@ -32,10 +32,10 @@
 ## 模块系统示例
 
 ### [module_test.jl](../examples/module_test.jl)
-演示如何使用标准模块调用语法的JsonLang模块系统。
+演示如何使用标准模块调用语法的JsonLang模块系统：`{"call": ["模块.函数", 参数]}`。
 
 ### [simplified_module_test.jl](../examples/simplified_module_test.jl)
-展示如何使用简化调用语法的模块系统。
+展示如何使用简化调用语法的模块系统：`{"模块.函数": [参数]}`。
 
 ### [utils.jl](../examples/utils.jl)
 可以被其他程序导入的实用工具模块示例。
@@ -62,10 +62,10 @@
 ## 高级示例
 
 ### [taow.jl](../examples/taow.jl)
-一个更复杂的程序，展示多个JsonLang功能共同工作。
+一个更复杂的程序，展示多个JsonLang功能共同工作，包括嵌套数据结构和函数。
 
 ### [uni.jl](../examples/uni.jl)
-演示JsonLang中的Unicode字符串处理。
+演示无限循环的实现，有助于理解如何创建和（手动）终止长时间运行的进程。
 
 ## 运行示例
 
