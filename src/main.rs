@@ -1,60 +1,97 @@
 mod interpreter;
 mod modules;
 
+use serde_json::Value;
 use std::env;
 use std::fs;
-use serde_json::Value;
 use interpreter::Interpreter;
 use modules::get_module;
 
-// 添加一个全局静态变量来控制调试输出
+// 全局调试模式标志
 static mut DEBUG_MODE: bool = false;
+static mut IGNORE_NON_CRITICAL_ERRORS: bool = false;
+static mut CHECK_ONLY: bool = false;
 
-// 获取调试模式状态的公共函数
+// 检查是否处于调试模式
 pub fn is_debug_mode() -> bool {
     unsafe { DEBUG_MODE }
+}
+
+// 检查是否处于容错模式
+pub fn is_ignore_non_critical_errors() -> bool {
+    unsafe { IGNORE_NON_CRITICAL_ERRORS }
+}
+
+// 检查是否只进行错误检查
+pub fn is_check_only() -> bool {
+    unsafe { CHECK_ONLY }
 }
 
 fn main() {
     // 获取命令行参数
     let args: Vec<String> = env::args().collect();
     
-    // 检查是否有 --debug 参数
-    for arg in &args {
-        if arg == "--debug" {
-            unsafe { DEBUG_MODE = true; }
-            println!("调试模式已启用");
+    // 默认参数值
+    let mut filename = String::new();
+    
+    // 解析命令行参数
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--debug" => {
+                // 启用调试模式
+                unsafe { DEBUG_MODE = true; }
+                println!("调试模式已启用");
+            },
+            "--ignore-non-critical-errors" => {
+                // 启用容错模式（忽略非关键错误）
+                unsafe { IGNORE_NON_CRITICAL_ERRORS = true; }
+                println!("容错模式已启用 - 将忽略非关键错误");
+            },
+            "--check" => {
+                // 启用仅检查模式
+                unsafe { CHECK_ONLY = true; }
+                println!("检查模式已启用 - 只检查错误，不执行代码");
+            },
+            "--help" => {
+                // 显示帮助信息
+                print_help();
+                return;
+            },
+            _ => {
+                // 假设这是文件名
+                filename = args[i].clone();
+            }
         }
+        i += 1;
     }
     
-    if args.len() < 2 || (args.len() == 2 && args[1] == "--debug") {
-        eprintln!("用法: {} [--debug] <JsonLang程序文件(通常为.jl或.json)>", args[0]);
+    if filename.is_empty() {
+        eprintln!("错误: 请指定要执行的JsonLang文件");
+        print_help();
         std::process::exit(1);
     }
     
-    // 获取程序文件路径（如果有--debug参数，则跳过它）
-    let program_file = if args[1] == "--debug" { &args[2] } else { &args[1] };
-    
     // 读取程序文件
-    let program_text = match fs::read_to_string(program_file) {
+    let program_text = match fs::read_to_string(&filename) {
         Ok(text) => text,
-        Err(err) => {
-            eprintln!("无法读取程序文件 '{}': {}", program_file, err);
+        Err(e) => {
+            eprintln!("无法读取程序文件 '{}': {}", filename, e);
             std::process::exit(1);
         }
     };
-
+    
     // 解析 JSON
     let program: Value = match serde_json::from_str(&program_text) {
         Ok(json) => json,
-        Err(err) => {
-            eprintln!("JSON 解析错误: {}。您连json都不会写吗？你是小学生吗？", err);
+        Err(e) => {
+            eprintln!("JSON 解析错误: {}。您连json都不会写吗？你是小学生吗？", e);
             std::process::exit(1);
         }
     };
-
+    
     // 获取需要加载的模块列表
-    let mut modules: Vec<Box<dyn modules::Module>> = Vec::new();
+    let mut modules = Vec::new();
     
     // 从程序的include字段获取需要加载的模块
     if let Some(include_array) = program.get("include").and_then(|v| v.as_array()) {
@@ -68,18 +105,52 @@ fn main() {
             }
         }
     }
-
-    // 创建并运行解释器
+    
+    // 创建解释器
     match Interpreter::new(program, modules) {
         Ok(mut interpreter) => {
-            if let Err(err) = interpreter.run() {
-                eprintln!("运行时错误: {}。撕拉...。啊？", err);
-                std::process::exit(1);
+            // 在仅检查模式下不执行程序
+            if is_check_only() {
+                println!("程序检查完成，未发现致命错误");
+                return;
             }
-        }
-        Err(err) => {
-            eprintln!("初始化错误: {}。撕拉...", err);
+            
+            // 运行程序
+            if let Err(e) = interpreter.run() {
+                // 根据错误类型和当前模式决定行为
+                match e {
+                    interpreter::error::InterpreterError::InvalidProgramStructure(_) => {
+                        // 程序结构错误总是致命的
+                        eprintln!("错误: {}", e);
+                        std::process::exit(1);
+                    },
+                    _ => {
+                        // 其他错误类型在容错模式下只报告不终止
+                        if is_ignore_non_critical_errors() {
+                            eprintln!("警告: {}", e);
+                        } else {
+                            eprintln!("错误: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        },
+        Err(e) => {
+            eprintln!("初始化错误: {}。撕拉...", e);
             std::process::exit(1);
         }
     }
+}
+
+// 打印帮助信息
+fn print_help() {
+    println!("JsonLang 解释器 v0.3.0");
+    println!("用法: jsonlang [选项] <文件名>");
+    println!("");
+    println!("选项:");
+    println!("  --debug                     启用调试模式，显示详细执行信息");
+    println!("  --ignore-non-critical-errors 容错模式，只报告非关键错误而不终止程序");
+    println!("  --check                     仅检查错误，不执行程序代码");
+    println!("  --help                      显示此帮助信息");
 }

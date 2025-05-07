@@ -1,10 +1,12 @@
 use serde_json::Value;
 use super::context::Context;
 use super::error::{InterpreterError, Result};
+use super::error::error_messages::statement::{self, switch, control_flow, array, exec};
 use crate::modules::jl_module;
 use crate::is_debug_mode;
 use std::collections::HashMap;
 use std::process::Command;
+use regex::Regex;
 
 pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -> Result<()> {
     if is_debug_mode() {
@@ -21,6 +23,25 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
         "while" => execute_while_statement(args, context),
         "for" => execute_for_statement(args, context),
         "exec" => execute_exec_statement(args, context),
+        "switch" => execute_switch_statement(args, context),
+        "array.create" => execute_array_create(args, context),
+        "array.push" => execute_array_push(args, context),
+        "array.pop" => execute_array_pop(args, context),
+        "array.get" => execute_array_get(args, context),
+        "array.set" => execute_array_set(args, context),
+        "array.length" => execute_array_length(args, context),
+        "array.slice" => execute_array_slice(args, context),
+        "object.create" => execute_object_create(args, context),
+        "object.get" => execute_object_get(args, context),
+        "object.set" => execute_object_set(args, context),
+        "object.has" => execute_object_has(args, context),
+        "object.keys" => execute_object_keys(args, context),
+        "object.values" => execute_object_values(args, context),
+        "object.delete" => execute_object_delete(args, context),
+        "regex.match" => execute_regex_match(args, context),
+        "regex.test" => execute_regex_test(args, context),
+        "regex.replace" => execute_regex_replace(args, context),
+        "regex.split" => execute_regex_split(args, context),
         _ => {
             // 检查是否是新的函数调用语法（例如：math.add 或 自定义模块.函数）
             if stmt_type.contains('.') {
@@ -51,7 +72,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                                                 params_map.insert(param_name.clone(), arg.clone() as Value);
                                             } else {
                                                 return Err(InterpreterError::FunctionError(
-                                                    format!("杂鱼~缺少参数 '{}'", param_name)
+                                                    statement::missing_parameter(param_name)
                                                 ));
                                             }
                                         }
@@ -70,7 +91,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                     } else {
                         // 模块不存在
                         return Err(InterpreterError::ModuleError(
-                            format!("杂鱼~未找到模块 '{}'", module_name)
+                            super::error::error_messages::context::module_not_found(module_name)
                         ));
                     }
                 }
@@ -82,7 +103,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                     // 检查是否是内置语句或模块函数
                     if is_builtin_statement(stmt_type) {
                         return Err(InterpreterError::FunctionError(
-                            format!("杂鱼~函数名 '{}' 与内置语句冲突", stmt_type)
+                            super::error::error_messages::context::function_name_conflict_builtin(stmt_type)
                         ));
                     }
 
@@ -96,7 +117,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                                 for (fname, _) in module.get_functions() {
                                     if fname == function_name {
                                         return Err(InterpreterError::FunctionError(
-                                            format!("杂鱼~函数名 '{}' 与模块函数冲突", stmt_type)
+                                            super::error::error_messages::context::function_name_conflict_module(stmt_type)
                                         ));
                                     }
                                 }
@@ -117,12 +138,12 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                             params_obj
                         } else {
                             return Err(InterpreterError::FunctionError(
-                                "杂鱼~函数参数定义必须是对象".to_string()
+                                statement::FUNCTION_PARAMS_MUST_BE_OBJ.to_string()
                             ));
                         }
                     } else {
                         return Err(InterpreterError::FunctionError(
-                            "杂鱼~函数缺少参数定义".to_string()
+                            statement::FUNCTION_MISSING_PARAMS.to_string()
                         ));
                     };
 
@@ -133,7 +154,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                             params_map.insert(param_name.clone(), arg.clone() as Value);
                         } else {
                             return Err(InterpreterError::FunctionError(
-                                format!("杂鱼~缺少参数 '{}'", param_name)
+                                statement::missing_parameter(param_name)
                             ));
                         }
                     }
@@ -144,7 +165,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
             }
 
             Err(InterpreterError::RuntimeError(
-                format!("杂鱼~未知的语句类型: {}", stmt_type)
+                statement::unknown_statement_type(stmt_type)
             ))
         }
     }
@@ -152,7 +173,10 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
 
 // 检查是否是内置语句
 fn is_builtin_statement(name: &str) -> bool {
-    matches!(name, "var" | "echo" | "concat" | "if" | "call" | "while" | "for" | "comment" | "exec")
+    matches!(name, "var" | "echo" | "concat" | "if" | "call" | "while" | "for" | "comment" | "exec" | "switch" 
+             | "array.create" | "array.push" | "array.pop" | "array.get" | "array.set" | "array.length" | "array.slice"
+             | "object.create" | "object.get" | "object.set" | "object.has" | "object.keys" | "object.values" | "object.delete"
+             | "regex.match" | "regex.test" | "regex.replace" | "regex.split")
 }
 
 fn execute_var_statement(args: &Value, context: &mut Context) -> Result<()> {
@@ -176,7 +200,7 @@ fn execute_var_statement(args: &Value, context: &mut Context) -> Result<()> {
         Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
-            "杂鱼~'var' 语句的参数必须是一个对象".to_string()
+            statement::param_must_be_obj("var")
         ))
     }
 }
@@ -256,7 +280,7 @@ fn execute_call_statement(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::FunctionError(
-                "杂鱼~函数调用缺少函数名".to_string()
+                statement::FUNCTION_CALL_MISSING_NAME.to_string()
             ));
         }
 
@@ -285,7 +309,7 @@ fn execute_call_statement(args: &Value, context: &mut Context) -> Result<()> {
         }
     }
     Err(InterpreterError::RuntimeError(
-        "杂鱼~无效的函数调用".to_string()
+        statement::INVALID_FUNCTION_CALL.to_string()
     ))
 }
 
@@ -464,13 +488,13 @@ pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Val
     // 验证函数结构
     let body = func.get("body").ok_or_else(|| {
         InterpreterError::InvalidProgramStructure(
-            "杂鱼~函数缺少 'body' 字段".to_string()
+            statement::FUNCTION_MISSING_BODY.to_string()
         )
     })?;
 
     let statements = body.as_array().ok_or_else(|| {
         InterpreterError::InvalidProgramStructure(
-            "杂鱼~函数 'body' 必须是一个数组".to_string()
+            statement::FUNCTION_BODY_NOT_ARRAY.to_string()
         )
     })?;
 
@@ -503,7 +527,7 @@ pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Val
             }
         } else {
             return Err(InterpreterError::FunctionError(
-                "杂鱼~函数参数必须是一个对象".to_string()
+                statement::FUNCTION_PARAMS_MUST_BE_OBJ.to_string()
             ));
         }
     }
@@ -515,12 +539,12 @@ pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Val
                 execute_statement(stmt_type, args, context)?;
             } else {
                 return Err(InterpreterError::RuntimeError(
-                    "杂鱼~语句对象为空".to_string()
+                    statement::STATEMENT_EMPTY.to_string()
                 ));
             }
         } else {
             return Err(InterpreterError::RuntimeError(
-                "杂鱼~语句必须是一个对象".to_string()
+                statement::STATEMENT_NOT_OBJECT.to_string()
             ));
         }
     }
@@ -585,20 +609,82 @@ fn execute_while_statement(args: &Value, context: &mut Context) -> Result<()> {
             Ok(())
         } else {
             Err(InterpreterError::RuntimeError(
-                "杂鱼~'while' 语句缺少 'condition' 或 'body' 字段".to_string()
+                control_flow::WHILE_MISSING_FIELDS.to_string()
             ))
         }
     } else {
         Err(InterpreterError::RuntimeError(
-            "杂鱼~'while' 语句的参数必须是一个对象".to_string()
+            control_flow::WHILE_ARGS_NOT_OBJ.to_string()
         ))
     }
 }
 
 fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(obj) = args.as_object() {
+        // 支持数组遍历语法
+        if let Some(array_expr) = obj.get("in") {
+            // 数组遍历语法: {"for": {"var": "item", "in": "@var.array", "body": [...]}}
+            if let (Some(var_name), Some(body)) = (
+                obj.get("var").and_then(|v| v.as_str()),
+                obj.get("body")
+            ) {
+                // 获取要遍历的数组
+                let array_value = if let Some(array_ref) = array_expr.as_str() {
+                    if array_ref.starts_with("@") {
+                        if let Some(val) = context.get_value(array_ref) {
+                            val.clone()
+                        } else {
+                            return Err(InterpreterError::RuntimeError(
+                                format!("杂鱼~变量 '{}' 不存在", array_ref)
+                            ));
+                        }
+                    } else {
+                        Value::String(array_ref.to_string())
+                    }
+                } else {
+                    array_expr.clone()
+                };
+                
+                // 确保是数组类型
+                let array = if let Value::Array(arr) = array_value {
+                    arr
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        "杂鱼~'for..in' 的in参数必须是一个数组".to_string()
+                    ));
+                };
+                
+                // 遍历数组的每个元素
+                for item in array {
+                    // 设置循环变量
+                    context.set_variable(var_name.to_string(), item.clone())?;
+                    
+                    // 执行循环体
+                    if let Some(statements) = body.as_array() {
+                        for stmt in statements {
+                            if let Some(obj) = stmt.as_object() {
+                                if let Some((stmt_type, args)) = obj.iter().next() {
+                                    execute_statement(stmt_type, args, context)?;
+                                }
+                            }
+                        }
+                    } else {
+                        return Err(InterpreterError::RuntimeError(
+                            "杂鱼~循环体必须是语句数组".to_string()
+                        ));
+                    }
+                }
+                
+                return Ok(());
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    control_flow::FOR_MISSING_FIELDS.to_string()
+                ));
+            }
+        }
         // 支持两种for循环语法
-        if let Some(range) = obj.get("range") {
+        else if let Some(range) = obj.get("range") {
+            // 以下是原有代码
             // 新的范围语法: {"for": {"var": "i", "range": [1, 5], "body": [...]}}
             if let (Some(var_name), Some(range_array), Some(body)) = (
                 obj.get("var").and_then(|v| v.as_str()),
@@ -635,12 +721,12 @@ fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> {
                     Ok(())
                 } else {
                     Err(InterpreterError::RuntimeError(
-                        "杂鱼~'range' 必须是一个包含两个数字的数组".to_string()
+                        control_flow::FOR_RANGE_INVALID.to_string()
                     ))
                 }
             } else {
                 Err(InterpreterError::RuntimeError(
-                    "杂鱼~'for' 语句缺少必要的字段".to_string()
+                    control_flow::FOR_MISSING_FIELDS.to_string()
                 ))
             }
         } else {
@@ -680,13 +766,13 @@ fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> {
                 Ok(())
             } else {
                 Err(InterpreterError::RuntimeError(
-                    "杂鱼~'for' 语句缺少必要的字段".to_string()
+                    control_flow::FOR_MISSING_FIELDS.to_string()
                 ))
             }
         }
     } else {
         Err(InterpreterError::RuntimeError(
-            "杂鱼~'for' 语句的参数必须是一个对象".to_string()
+            control_flow::FOR_ARGS_NOT_OBJ.to_string()
         ))
     }
 }
@@ -740,7 +826,7 @@ fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<()> {
             context.resolve_value(cmd)
         } else {
             return Err(InterpreterError::RuntimeError(
-                "杂鱼~'exec' 语句缺少 'cmd' 字段".to_string()
+                exec::MISSING_CMD.to_string()
             ));
         };
         
@@ -789,13 +875,1214 @@ fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<()> {
             },
             Err(e) => {
                 Err(InterpreterError::RuntimeError(
-                    format!("杂鱼~执行命令失败: {}", e)
+                    exec::execution_failed(&e.to_string())
                 ))
             }
         }
     } else {
         Err(InterpreterError::RuntimeError(
-            "杂鱼~'exec' 语句的参数必须是一个对象".to_string()
+            exec::ARGS_NOT_OBJ.to_string()
+        ))
+    }
+}
+
+// 执行switch语句
+fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(obj) = args.as_object() {
+        if let (Some(expr), Some(cases)) = (obj.get("expr"), obj.get("cases")) {
+            let expr_value = context.resolve_value(expr);
+            
+            if let Some(cases_array) = cases.as_array() {
+                let mut default_case = None;
+                let mut match_found = false;
+                
+                // 遍历所有case
+                for case in cases_array {
+                    if let Some(case_obj) = case.as_object() {
+                        // 检查是否是default case
+                        if case_obj.contains_key("default") {
+                            default_case = case_obj.get("body");
+                            continue;
+                        }
+                        
+                        // 正常case处理
+                        if let (Some(value), Some(body)) = (case_obj.get("value"), case_obj.get("body")) {
+                            let case_value = context.resolve_value(value);
+                            
+                            // 如果case值匹配
+                            if case_value == expr_value {
+                                match_found = true;
+                                
+                                // 执行case的语句体
+                                if let Some(statements) = body.as_array() {
+                                    for stmt in statements {
+                                        if let Some(obj) = stmt.as_object() {
+                                            if let Some((stmt_type, args)) = obj.iter().next() {
+                                                execute_statement(stmt_type, args, context)?;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    return Err(InterpreterError::RuntimeError(
+                                        switch::CASE_BODY_NOT_ARRAY.to_string()
+                                    ));
+                                }
+                                
+                                // 检查是否需要break（默认行为是break）
+                                if !case_obj.contains_key("fallthrough") || 
+                                   !case_obj.get("fallthrough").unwrap().as_bool().unwrap_or(false) {
+                                    break;
+                                }
+                            }
+                        } else {
+                            return Err(InterpreterError::RuntimeError(
+                                switch::CASE_MISSING_FIELDS.to_string()
+                            ));
+                        }
+                    } else {
+                        return Err(InterpreterError::RuntimeError(
+                            switch::CASE_NOT_OBJ.to_string()
+                        ));
+                    }
+                }
+                
+                // 如果没有匹配的case但有默认case，执行默认case
+                if !match_found && default_case.is_some() {
+                    if let Some(statements) = default_case.unwrap().as_array() {
+                        for stmt in statements {
+                            if let Some(obj) = stmt.as_object() {
+                                if let Some((stmt_type, args)) = obj.iter().next() {
+                                    execute_statement(stmt_type, args, context)?;
+                                }
+                            }
+                        }
+                    } else {
+                        return Err(InterpreterError::RuntimeError(
+                            switch::DEFAULT_BODY_NOT_ARRAY.to_string()
+                        ));
+                    }
+                }
+                
+                Ok(())
+            } else {
+                Err(InterpreterError::RuntimeError(
+                    switch::CASES_NOT_ARRAY.to_string()
+                ))
+            }
+        } else {
+            Err(InterpreterError::RuntimeError(
+                switch::MISSING_EXPR_OR_CASES.to_string()
+            ))
+        }
+    } else {
+        Err(InterpreterError::RuntimeError(
+            switch::ARGS_NOT_OBJ.to_string()
+        ))
+    }
+}
+
+// 数组相关操作函数
+
+// 创建新数组
+fn execute_array_create(args: &Value, context: &mut Context) -> Result<()> {
+    let result = if let Some(args_array) = args.as_array() {
+        // 如果提供了初始元素，则使用它们创建数组
+        // 处理每个元素，解析变量引用
+        let resolved_elements: Vec<Value> = args_array.iter()
+            .map(|elem| {
+                if let Some(text) = elem.as_str() {
+                    if text.starts_with("@") {
+                        if let Some(val) = context.get_value(text) {
+                            val.clone()
+                        } else {
+                            Value::String(text.to_string())
+                        }
+                    } else {
+                        Value::String(text.to_string())
+                    }
+                } else {
+                    elem.clone()
+                }
+            })
+            .collect();
+        
+        Value::Array(resolved_elements)
+    } else if let Some(obj) = args.as_object() {
+        if let Some(size) = obj.get("size") {
+            // 如果提供了size参数，则创建指定大小的空数组
+            let size_value = context.resolve_value(size);
+            if let Ok(size) = size_value.parse::<usize>() {
+                // 如果提供了初始值，则使用它填充数组
+                let initial_value = if let Some(init) = obj.get("initial") {
+                    if let Some(text) = init.as_str() {
+                        if text.starts_with("@") {
+                            if let Some(val) = context.get_value(text) {
+                                val.clone()
+                            } else {
+                                Value::Null
+                            }
+                        } else {
+                            Value::String(text.to_string())
+                        }
+                    } else {
+                        init.clone()
+                    }
+                } else {
+                    Value::Null
+                };
+                
+                let elements = vec![initial_value; size];
+                Value::Array(elements)
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::CREATE_SIZE_NOT_NUMBER.to_string()
+                ));
+            }
+        } else {
+            // 如果没有指定size，则创建一个空数组
+            Value::Array(Vec::new())
+        }
+    } else {
+        // 如果参数不是数组也不是对象，则创建一个空数组
+        Value::Array(Vec::new())
+    };
+    
+    context.set_variable("result".to_string(), result)?;
+    Ok(())
+}
+
+// 向数组末尾添加元素
+fn execute_array_push(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                array::PUSH_MISSING_ARGS.to_string()
+            ));
+        }
+        
+        // 第一个参数是数组
+        let array_ref = &args_array[0];
+        let array_var_name = if let Some(var_name) = array_ref.as_str() {
+            if var_name.starts_with("@var.") {
+                &var_name[5..] // 去掉 "@var." 前缀
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::PUSH_FIRST_ARG_NOT_ARRAY_REF.to_string()
+                ));
+            }
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::PUSH_FIRST_ARG_NOT_STRING_REF.to_string()
+            ));
+        };
+        
+        // 获取数组变量
+        let array_value = if let Some(val) = context.get_value(&format!("@var.{}", array_var_name)) {
+            val.clone()
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::var_not_found(array_var_name)
+            ));
+        };
+        
+        // 确保变量是一个数组
+        let mut array = if let Value::Array(arr) = array_value {
+            arr
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::var_not_array(array_var_name)
+            ));
+        };
+        
+        // 添加其余的参数到数组
+        for item in &args_array[1..] {
+            let resolved_item = if let Some(text) = item.as_str() {
+                if text.starts_with("@") {
+                    if let Some(val) = context.get_value(text) {
+                        val.clone()
+                    } else {
+                        Value::String(text.to_string())
+                    }
+                } else {
+                    Value::String(text.to_string())
+                }
+            } else {
+                item.clone()
+            };
+            
+            array.push(resolved_item);
+        }
+        
+        // 更新数组变量
+        context.set_variable(array_var_name.to_string(), Value::Array(array.clone()))?;
+        
+        // 将修改后的数组也存储在result变量中
+        context.set_variable("result".to_string(), Value::Array(array))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            statement::param_must_be_array("array.push")
+        ))
+    }
+}
+
+// 从数组末尾移除元素
+fn execute_array_pop(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.is_empty() {
+            return Err(InterpreterError::RuntimeError(
+                array::POP_MISSING_ARGS.to_string()
+            ));
+        }
+        
+        // 获取数组变量引用
+        let array_ref = &args_array[0];
+        let array_var_name = if let Some(var_name) = array_ref.as_str() {
+            if var_name.starts_with("@var.") {
+                &var_name[5..] // 去掉 "@var." 前缀
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::POP_ARG_NOT_ARRAY_REF.to_string()
+                ));
+            }
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::POP_ARG_NOT_STRING_REF.to_string()
+            ));
+        };
+        
+        // 获取数组变量
+        let array_value = if let Some(val) = context.get_value(&format!("@var.{}", array_var_name)) {
+            val.clone()
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::var_not_found(array_var_name)
+            ));
+        };
+        
+        // 确保变量是一个数组
+        let mut array = if let Value::Array(arr) = array_value {
+            arr
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::var_not_array(array_var_name)
+            ));
+        };
+        
+        // 从数组末尾移除元素
+        let popped = if !array.is_empty() {
+            array.pop().unwrap()
+        } else {
+            Value::Null
+        };
+        
+        // 更新数组变量
+        context.set_variable(array_var_name.to_string(), Value::Array(array))?;
+        
+        // 将弹出的元素存储在result变量中
+        context.set_variable("result".to_string(), popped)?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            statement::param_must_be_array("array.pop")
+        ))
+    }
+}
+
+// 获取数组指定索引的元素
+fn execute_array_get(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                array::GET_MISSING_ARGS.to_string()
+            ));
+        }
+        
+        // 获取数组
+        let array_value = if let Some(array_ref_str) = args_array[0].as_str() {
+            if array_ref_str.starts_with("@") {
+                if let Some(val) = context.get_value(array_ref_str) {
+                    val.clone()
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        array::var_not_found(array_ref_str)
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::GET_FIRST_ARG_NOT_ARRAY_REF.to_string()
+                ));
+            }
+        } else {
+            args_array[0].clone()
+        };
+        
+        // 确保是数组类型
+        let array = if let Value::Array(arr) = array_value {
+            arr
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::GET_FIRST_ARG_NOT_ARRAY.to_string()
+            ));
+        };
+        
+        // 获取索引
+        let index_value = context.resolve_value(&args_array[1]);
+        let index = if let Ok(idx) = index_value.parse::<usize>() {
+            idx
+        } else {
+            // 尝试直接从变量中获取值
+            if let Some(index_str) = args_array[1].as_str() {
+                if index_str.starts_with("@") {
+                    if let Some(val) = context.get_value(index_str) {
+                        if let Some(num) = val.as_u64() {
+                            num as usize
+                        } else if let Some(num) = val.as_i64() {
+                            num as usize
+                        } else if let Some(num) = val.as_f64() {
+                            num as usize
+                        } else {
+                            return Err(InterpreterError::RuntimeError(
+                                array::GET_SECOND_ARG_NOT_INDEX.to_string()
+                            ));
+                        }
+                    } else {
+                        return Err(InterpreterError::RuntimeError(
+                            array::var_not_found(index_str)
+                        ));
+                    }
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        array::GET_SECOND_ARG_NOT_INDEX.to_string()
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::GET_SECOND_ARG_NOT_INDEX.to_string()
+                ));
+            }
+        };
+        
+        // 获取元素
+        let element = if index < array.len() {
+            array[index].clone()
+        } else {
+            Value::Null
+        };
+        
+        // 存储结果
+        context.set_variable("result".to_string(), element)?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            statement::param_must_be_array("array.get")
+        ))
+    }
+}
+
+// 设置数组指定索引的元素
+fn execute_array_set(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 3 {
+            return Err(InterpreterError::RuntimeError(
+                array::SET_MISSING_ARGS.to_string()
+            ));
+        }
+        
+        // 获取数组变量引用
+        let array_ref = &args_array[0];
+        let array_var_name = if let Some(var_name) = array_ref.as_str() {
+            if var_name.starts_with("@var.") {
+                &var_name[5..] // 去掉 "@var." 前缀
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::set_first_arg_not_array_ref(var_name)
+                ));
+            }
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::set_first_arg_not_string_ref()
+            ));
+        };
+        
+        // 获取数组变量
+        let array_value = if let Some(val) = context.get_value(&format!("@var.{}", array_var_name)) {
+            val.clone()
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::var_not_found(array_var_name)
+            ));
+        };
+        
+        // 确保变量是一个数组
+        let mut array = if let Value::Array(arr) = array_value {
+            arr
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::var_not_array(array_var_name)
+            ));
+        };
+        
+        // 获取索引
+        let index_value = context.resolve_value(&args_array[1]);
+        let index = if let Ok(idx) = index_value.parse::<usize>() {
+            idx
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::set_second_arg_must_be_number()
+            ));
+        };
+        
+        // 获取新值
+        let new_value = if let Some(text) = args_array[2].as_str() {
+            if text.starts_with("@") {
+                if let Some(val) = context.get_value(text) {
+                    val.clone()
+                } else {
+                    Value::String(text.to_string())
+                }
+            } else {
+                Value::String(text.to_string())
+            }
+        } else {
+            args_array[2].clone()
+        };
+        
+        // 如果索引超出范围，扩展数组
+        if index >= array.len() {
+            array.resize(index + 1, Value::Null);
+        }
+        
+        // 设置元素
+        array[index] = new_value;
+        
+        // 更新数组变量
+        context.set_variable(array_var_name.to_string(), Value::Array(array.clone()))?;
+        
+        // 将修改后的数组也存储在result变量中
+        context.set_variable("result".to_string(), Value::Array(array))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            statement::param_must_be_array("array.set")
+        ))
+    }
+}
+
+// 获取数组长度
+fn execute_array_length(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.is_empty() {
+            return Err(InterpreterError::RuntimeError(
+                array::LENGTH_MISSING_ARGS.to_string()
+            ));
+        }
+        
+        // 获取数组
+        let array_value = if let Some(array_ref_str) = args_array[0].as_str() {
+            if array_ref_str.starts_with("@") {
+                if let Some(val) = context.get_value(array_ref_str) {
+                    val.clone()
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        array::var_not_found(array_ref_str)
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::LENGTH_ARG_NOT_ARRAY_REF.to_string()
+                ));
+            }
+        } else {
+            args_array[0].clone()
+        };
+        
+        // 确保是数组类型
+        let array = if let Value::Array(arr) = array_value {
+            arr
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::LENGTH_ARG_NOT_ARRAY.to_string()
+            ));
+        };
+        
+        // 获取长度
+        let length = array.len();
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Number(serde_json::Number::from(length)))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            statement::param_must_be_array("array.length")
+        ))
+    }
+}
+
+// 获取数组切片
+fn execute_array_slice(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                array::SLICE_MISSING_ARGS.to_string()
+            ));
+        }
+        
+        // 获取数组
+        let array_value = if let Some(array_ref_str) = args_array[0].as_str() {
+            if array_ref_str.starts_with("@") {
+                if let Some(val) = context.get_value(array_ref_str) {
+                    val.clone()
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        array::var_not_found(array_ref_str)
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::SLICE_FIRST_ARG_NOT_ARRAY_REF.to_string()
+                ));
+            }
+        } else {
+            args_array[0].clone()
+        };
+        
+        // 确保是数组类型
+        let array = if let Value::Array(arr) = array_value {
+            arr
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::SLICE_FIRST_ARG_NOT_ARRAY.to_string()
+            ));
+        };
+        
+        // 获取开始索引
+        let start_value = context.resolve_value(&args_array[1]);
+        let start = if let Ok(idx) = start_value.parse::<usize>() {
+            idx
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                array::SLICE_SECOND_ARG_NOT_INDEX.to_string()
+            ));
+        };
+        
+        // 获取结束索引（如果提供）
+        let end = if args_array.len() > 2 {
+            let end_value = context.resolve_value(&args_array[2]);
+            if let Ok(idx) = end_value.parse::<usize>() {
+                idx
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    array::SLICE_THIRD_ARG_NOT_INDEX.to_string()
+                ));
+            }
+        } else {
+            array.len()
+        };
+        
+        // 创建切片
+        let slice = if start <= array.len() {
+            let actual_end = end.min(array.len());
+            if start <= actual_end {
+                array[start..actual_end].to_vec()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Array(slice))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            statement::param_must_be_array("array.slice")
+        ))
+    }
+}
+
+// =========== 对象操作函数 ===========
+
+// 创建新对象
+fn execute_object_create(args: &Value, context: &mut Context) -> Result<()> {
+    let result = if let Some(obj) = args.as_object() {
+        // 如果提供了初始属性，则使用它们创建对象
+        // 处理每个属性，解析变量引用
+        let mut result_obj = serde_json::Map::new();
+        for (key, value) in obj {
+            let resolved_value = if let Some(text) = value.as_str() {
+                if text.starts_with("@") {
+                    if let Some(val) = context.get_value(text) {
+                        val.clone()
+                    } else {
+                        Value::String(text.to_string())
+                    }
+                } else {
+                    Value::String(text.to_string())
+                }
+            } else {
+                value.clone()
+            };
+            result_obj.insert(key.clone(), resolved_value);
+        }
+        Value::Object(result_obj)
+    } else {
+        // 如果参数不是对象，则创建一个空对象
+        Value::Object(serde_json::Map::new())
+    };
+    
+    context.set_variable("result".to_string(), result)?;
+    Ok(())
+}
+
+// 获取对象属性
+fn execute_object_get(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.get' 需要两个参数：对象和属性名".to_string()
+            ));
+        }
+        
+        // 获取对象
+        let obj_value = if let Some(obj_ref_str) = args_array[0].as_str() {
+            if obj_ref_str.starts_with("@") {
+                if let Some(val) = context.get_value(obj_ref_str) {
+                    val.clone()
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        format!("杂鱼~变量 '{}' 不存在", obj_ref_str)
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    "杂鱼~'object.get' 的第一个参数必须是一个对象变量引用".to_string()
+                ));
+            }
+        } else {
+            args_array[0].clone()
+        };
+        
+        // 确保是对象类型
+        let obj = if let Value::Object(obj) = obj_value {
+            obj
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.get' 的第一个参数必须是一个对象".to_string()
+            ));
+        };
+        
+        // 获取属性名
+        let key = context.resolve_value(&args_array[1]);
+        
+        // 获取属性值
+        let value = if let Some(val) = obj.get(&key) {
+            val.clone()
+        } else {
+            Value::Null
+        };
+        
+        // 存储结果
+        context.set_variable("result".to_string(), value)?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'object.get' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 设置对象属性
+fn execute_object_set(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 3 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.set' 需要三个参数：对象、属性名和值".to_string()
+            ));
+        }
+        
+        // 获取对象变量引用
+        let obj_ref = &args_array[0];
+        let obj_var_name = if let Some(var_name) = obj_ref.as_str() {
+            if var_name.starts_with("@var.") {
+                &var_name[5..] // 去掉 "@var." 前缀
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    "杂鱼~'object.set' 的第一个参数必须是一个对象变量引用".to_string()
+                ));
+            }
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.set' 的第一个参数必须是一个字符串变量引用".to_string()
+            ));
+        };
+        
+        // 获取对象变量
+        let obj_value = if let Some(val) = context.get_value(&format!("@var.{}", obj_var_name)) {
+            val.clone()
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                format!("杂鱼~变量 '{}' 不存在", obj_var_name)
+            ));
+        };
+        
+        // 确保变量是一个对象
+        let mut obj = if let Value::Object(obj) = obj_value {
+            obj
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                format!("杂鱼~变量 '{}' 不是一个对象", obj_var_name)
+            ));
+        };
+        
+        // 获取属性名
+        let key = context.resolve_value(&args_array[1]);
+        
+        // 获取新值
+        let new_value = if let Some(text) = args_array[2].as_str() {
+            if text.starts_with("@") {
+                if let Some(val) = context.get_value(text) {
+                    val.clone()
+                } else {
+                    Value::String(text.to_string())
+                }
+            } else {
+                Value::String(text.to_string())
+            }
+        } else {
+            args_array[2].clone()
+        };
+        
+        // 设置属性
+        obj.insert(key, new_value);
+        
+        // 更新对象变量
+        context.set_variable(obj_var_name.to_string(), Value::Object(obj.clone()))?;
+        
+        // 将修改后的对象也存储在result变量中
+        context.set_variable("result".to_string(), Value::Object(obj))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'object.set' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 检查对象是否有属性
+fn execute_object_has(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.has' 需要两个参数：对象和属性名".to_string()
+            ));
+        }
+        
+        // 获取对象
+        let obj_value = if let Some(obj_ref_str) = args_array[0].as_str() {
+            if obj_ref_str.starts_with("@") {
+                if let Some(val) = context.get_value(obj_ref_str) {
+                    val.clone()
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        format!("杂鱼~变量 '{}' 不存在", obj_ref_str)
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    "杂鱼~'object.has' 的第一个参数必须是一个对象变量引用".to_string()
+                ));
+            }
+        } else {
+            args_array[0].clone()
+        };
+        
+        // 确保是对象类型
+        let obj = if let Value::Object(obj) = obj_value {
+            obj
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.has' 的第一个参数必须是一个对象".to_string()
+            ));
+        };
+        
+        // 获取属性名
+        let key = context.resolve_value(&args_array[1]);
+        
+        // 检查属性是否存在
+        let has_property = obj.contains_key(&key);
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Bool(has_property))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'object.has' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 获取对象所有键
+fn execute_object_keys(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.is_empty() {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.keys' 需要一个参数：对象".to_string()
+            ));
+        }
+        
+        // 获取对象
+        let obj_value = if let Some(obj_ref_str) = args_array[0].as_str() {
+            if obj_ref_str.starts_with("@") {
+                if let Some(val) = context.get_value(obj_ref_str) {
+                    val.clone()
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        format!("杂鱼~变量 '{}' 不存在", obj_ref_str)
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    "杂鱼~'object.keys' 的参数必须是一个对象变量引用".to_string()
+                ));
+            }
+        } else {
+            args_array[0].clone()
+        };
+        
+        // 确保是对象类型
+        let obj = if let Value::Object(obj) = obj_value {
+            obj
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.keys' 的参数必须是一个对象".to_string()
+            ));
+        };
+        
+        // 获取所有键
+        let keys: Vec<Value> = obj.keys()
+            .map(|k| Value::String(k.clone()))
+            .collect();
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Array(keys))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'object.keys' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 获取对象所有值
+fn execute_object_values(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.is_empty() {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.values' 需要一个参数：对象".to_string()
+            ));
+        }
+        
+        // 获取对象
+        let obj_value = if let Some(obj_ref_str) = args_array[0].as_str() {
+            if obj_ref_str.starts_with("@") {
+                if let Some(val) = context.get_value(obj_ref_str) {
+                    val.clone()
+                } else {
+                    return Err(InterpreterError::RuntimeError(
+                        format!("杂鱼~变量 '{}' 不存在", obj_ref_str)
+                    ));
+                }
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    "杂鱼~'object.values' 的参数必须是一个对象变量引用".to_string()
+                ));
+            }
+        } else {
+            args_array[0].clone()
+        };
+        
+        // 确保是对象类型
+        let obj = if let Value::Object(obj) = obj_value {
+            obj
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.values' 的参数必须是一个对象".to_string()
+            ));
+        };
+        
+        // 获取所有值
+        let values: Vec<Value> = obj.values().cloned().collect();
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Array(values))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'object.values' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 删除对象属性
+fn execute_object_delete(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.delete' 需要两个参数：对象和属性名".to_string()
+            ));
+        }
+        
+        // 获取对象变量引用
+        let obj_ref = &args_array[0];
+        let obj_var_name = if let Some(var_name) = obj_ref.as_str() {
+            if var_name.starts_with("@var.") {
+                &var_name[5..] // 去掉 "@var." 前缀
+            } else {
+                return Err(InterpreterError::RuntimeError(
+                    "杂鱼~'object.delete' 的第一个参数必须是一个对象变量引用".to_string()
+                ));
+            }
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'object.delete' 的第一个参数必须是一个字符串变量引用".to_string()
+            ));
+        };
+        
+        // 获取对象变量
+        let obj_value = if let Some(val) = context.get_value(&format!("@var.{}", obj_var_name)) {
+            val.clone()
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                format!("杂鱼~变量 '{}' 不存在", obj_var_name)
+            ));
+        };
+        
+        // 确保变量是一个对象
+        let mut obj = if let Value::Object(obj) = obj_value {
+            obj
+        } else {
+            return Err(InterpreterError::RuntimeError(
+                format!("杂鱼~变量 '{}' 不是一个对象", obj_var_name)
+            ));
+        };
+        
+        // 获取属性名
+        let key = context.resolve_value(&args_array[1]);
+        
+        // 删除属性，并获取是否存在该属性
+        let had_property = obj.remove(&key).is_some();
+        
+        // 更新对象变量
+        context.set_variable(obj_var_name.to_string(), Value::Object(obj.clone()))?;
+        
+        // 将结果存储在result变量中
+        context.set_variable("result".to_string(), Value::Bool(had_property))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'object.delete' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// =========== 正则表达式函数 ===========
+
+// 正则表达式匹配
+fn execute_regex_match(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'regex.match' 需要两个参数：正则表达式和要匹配的字符串".to_string()
+            ));
+        }
+        
+        // 获取正则表达式模式
+        let pattern = context.resolve_value(&args_array[0]);
+        
+        // 获取要匹配的字符串
+        let text = context.resolve_value(&args_array[1]);
+        
+        // 编译正则表达式
+        let regex = match Regex::new(&pattern) {
+            Ok(re) => re,
+            Err(err) => {
+                return Err(InterpreterError::RuntimeError(
+                    format!("杂鱼~正则表达式编译错误: {}", err)
+                ));
+            }
+        };
+        
+        // 执行匹配
+        let captures = regex.captures(&text);
+        
+        // 处理匹配结果
+        let result = if let Some(caps) = captures {
+            // 创建匹配结果数组
+            let mut matches = Vec::new();
+            
+            // 添加完整匹配
+            if let Some(m) = caps.get(0) {
+                matches.push(Value::String(m.as_str().to_string()));
+            }
+            
+            // 添加捕获组
+            for i in 1..caps.len() {
+                if let Some(m) = caps.get(i) {
+                    matches.push(Value::String(m.as_str().to_string()));
+                } else {
+                    matches.push(Value::Null);
+                }
+            }
+            
+            Value::Array(matches)
+        } else {
+            // 无匹配
+            Value::Null
+        };
+        
+        // 存储结果
+        context.set_variable("result".to_string(), result)?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'regex.match' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 正则表达式测试
+fn execute_regex_test(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'regex.test' 需要两个参数：正则表达式和要测试的字符串".to_string()
+            ));
+        }
+        
+        // 获取正则表达式模式
+        let pattern = context.resolve_value(&args_array[0]);
+        
+        // 获取要测试的字符串
+        let text = context.resolve_value(&args_array[1]);
+        
+        // 编译正则表达式
+        let regex = match Regex::new(&pattern) {
+            Ok(re) => re,
+            Err(err) => {
+                return Err(InterpreterError::RuntimeError(
+                    format!("杂鱼~正则表达式编译错误: {}", err)
+                ));
+            }
+        };
+        
+        // 执行测试
+        let is_match = regex.is_match(&text);
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Bool(is_match))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'regex.test' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 正则表达式替换
+fn execute_regex_replace(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 3 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'regex.replace' 需要三个参数：正则表达式、要替换的字符串和替换值".to_string()
+            ));
+        }
+        
+        // 获取正则表达式模式
+        let pattern = context.resolve_value(&args_array[0]);
+        
+        // 获取要替换的字符串
+        let text = context.resolve_value(&args_array[1]);
+        
+        // 获取替换值
+        let replacement = context.resolve_value(&args_array[2]);
+        
+        // 编译正则表达式
+        let regex = match Regex::new(&pattern) {
+            Ok(re) => re,
+            Err(err) => {
+                return Err(InterpreterError::RuntimeError(
+                    format!("杂鱼~正则表达式编译错误: {}", err)
+                ));
+            }
+        };
+        
+        // 执行替换，支持最多9个捕获组的引用($1-$9)
+        let result = regex.replace_all(&text, replacement.as_str()).to_string();
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::String(result))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'regex.replace' 语句的参数必须是一个数组".to_string()
+        ))
+    }
+}
+
+// 正则表达式分割
+fn execute_regex_split(args: &Value, context: &mut Context) -> Result<()> {
+    if let Some(args_array) = args.as_array() {
+        if args_array.len() < 2 {
+            return Err(InterpreterError::RuntimeError(
+                "杂鱼~'regex.split' 需要两个参数：正则表达式和要分割的字符串".to_string()
+            ));
+        }
+        
+        // 获取正则表达式模式
+        let pattern = context.resolve_value(&args_array[0]);
+        
+        // 获取要分割的字符串
+        let text = context.resolve_value(&args_array[1]);
+        
+        // 编译正则表达式
+        let regex = match Regex::new(&pattern) {
+            Ok(re) => re,
+            Err(err) => {
+                return Err(InterpreterError::RuntimeError(
+                    format!("杂鱼~正则表达式编译错误: {}", err)
+                ));
+            }
+        };
+        
+        // 执行分割
+        let parts: Vec<Value> = regex.split(&text)
+            .map(|s| Value::String(s.to_string()))
+            .collect();
+        
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Array(parts))?;
+        
+        Ok(())
+    } else {
+        Err(InterpreterError::RuntimeError(
+            "杂鱼~'regex.split' 语句的参数必须是一个数组".to_string()
         ))
     }
 } 
