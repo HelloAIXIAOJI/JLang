@@ -1,8 +1,24 @@
-# JsonLang Syntax Documentation
+# JLang Syntax Reference
+
+This document provides a detailed description of the JLang programming language syntax. JLang is a JSON-based programming language that allows you to write programs using familiar JSON structure while providing programming features like variables, loops, conditionals, and functions.
+
+## Table of Contents
+
+1. [Basic Program Structure](#basic-program-structure)
+2. [Variables and Constants](#variables-and-constants)
+3. [Data Types](#data-types)
+4. [Operators](#operators)
+5. [Conditional Statements](#conditional-statements)
+6. [Loops](#loops)
+7. [Functions](#functions)
+8. [Module System](#module-system)
+9. [Comments](#comments)
+10. [Built-in Features](#built-in-features)
+11. [Comprehensive Examples](#comprehensive-examples)
 
 ## 1. Program Structure
 
-A JsonLang program is a JSON object with the following top-level fields:
+A JLang program is a JSON object with the following top-level fields:
 
 ```json
 {
@@ -30,7 +46,7 @@ A JsonLang program is a JSON object with the following top-level fields:
 
 ## 2. Data Types
 
-JsonLang supports the following data types:
+JLang supports the following data types:
 
 - Strings: `"hello"`
 - Numbers: `123`, `3.14`
@@ -100,7 +116,7 @@ Use the `@const.constant_name` syntax to reference constants:
 
 ### 4.3 Comments
 
-JsonLang supports comments through the `comment` statement in two forms:
+JLang supports comments through the `comment` statement in two forms:
 
 1. Single-line comment (string form):
 ```json
@@ -237,7 +253,7 @@ Example:
 
 #### 4.7.2 For Loop
 
-JsonLang supports two for loop syntaxes:
+JLang supports two for loop syntaxes:
 
 1. Range syntax (recommended):
 ```json
@@ -363,12 +379,12 @@ Example:
 
 ## 6. Command Line Arguments
 
-The JsonLang interpreter supports the following command line arguments:
+The JLang interpreter supports the following command line arguments:
 
 ### 6.1 Basic Usage
 
 ```bash
-jsonlang [options] <program_file_path>
+jlang [options] <program_file_path>
 ```
 
 ### 6.2 Debug Mode
@@ -376,7 +392,7 @@ jsonlang [options] <program_file_path>
 Use the `--debug` parameter to enable debug mode, which displays additional debug information:
 
 ```bash
-jsonlang --debug <program_file_path>
+jlang --debug <program_file_path>
 ```
 
 In debug mode, the interpreter outputs additional information, such as:
@@ -385,17 +401,17 @@ In debug mode, the interpreter outputs additional information, such as:
 Example:
 ```bash
 # Normal mode (no debug info)
-jsonlang examples/loop_test.jl
+jlang examples/loop_test.jl
 
 # Debug mode (shows debug info)
-jsonlang --debug examples/loop_test.jl
+jlang --debug examples/loop_test.jl
 ```
 
 ## 7. Advanced Features
 
 ### 7.1 Recursive Functions
 
-JsonLang fully supports recursive function calls, enabling complex algorithms like factorial, Fibonacci sequences, etc.
+JLang fully supports recursive function calls, enabling complex algorithms like factorial, Fibonacci sequences, etc.
 
 Example (recursive factorial implementation):
 ```json
@@ -438,7 +454,7 @@ Example (recursive factorial implementation):
 
 ### 7.2 Weak Typing System
 
-JsonLang features a weak typing system that automatically converts between types:
+JLang features a weak typing system that automatically converts between types:
 
 - String numbers ("42") convert to actual numbers in math operations
 - Boolean values convert to 1 (true) or 0 (false) in numeric contexts
@@ -454,7 +470,7 @@ Example:
 
 ### 7.3 Modules
 
-JsonLang supports both built-in modules and custom modules:
+JLang supports both built-in modules and custom modules:
 
 #### 7.3.1 Built-in Modules
 

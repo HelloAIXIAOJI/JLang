@@ -3,7 +3,7 @@
     "program": {
         "main": {
             "body": [
-                {"echo": ["Hello, JsonLang!", "\n"]},
+                {"echo": ["Hello, JLang!", "\n"]},
                 {"var": {"count": 0}},
                 {"while": {
                     "condition": {

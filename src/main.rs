@@ -6,6 +6,37 @@ use std::env;
 use std::fs;
 use interpreter::Interpreter;
 use modules::get_module;
+use std::path::Path;
+
+// 读取Cargo.toml获取版本信息
+fn get_version() -> String {
+    // 尝试读取Cargo.toml文件
+    let cargo_toml_path = Path::new("Cargo.toml");
+    if let Ok(contents) = fs::read_to_string(cargo_toml_path) {
+        // 解析TOML
+        if let Ok(parsed_toml) = contents.parse::<toml::Table>() {
+            // 获取版本信息
+            if let Some(package) = parsed_toml.get("package") {
+                if let Some(version) = package.get("version") {
+                    if let Some(version_str) = version.as_str() {
+                        return version_str.to_string();
+                    }
+                }
+            }
+        }
+    }
+    
+    // 如果无法从Cargo.toml获取，返回默认版本
+    "0.3.0".to_string()
+}
+
+// 程序信息常量
+lazy_static::lazy_static! {
+    static ref VERSION: String = get_version();
+}
+const CREATOR: &str = "HelloAIXIAOJI";
+const ABOUT: &str = "JLang是一种基于JSON的编程语言，理论图灵完备，支持弱类型、递归、模块化和系统调用。";
+const REPO_URL: &str = "https://github.com/HelloAIXIAOJI/JsonLang";
 
 // 全局调试模式标志
 static mut DEBUG_MODE: bool = false;
@@ -58,6 +89,16 @@ fn main() {
                 print_help();
                 return;
             },
+            "--about" => {
+                // 显示关于信息
+                print_about();
+                return;
+            },
+            "--creator" => {
+                // 显示创建者信息
+                print_creator();
+                return;
+            },
             _ => {
                 // 假设这是文件名
                 filename = args[i].clone();
@@ -67,7 +108,7 @@ fn main() {
     }
     
     if filename.is_empty() {
-        eprintln!("错误: 请指定要执行的JsonLang文件");
+        eprintln!("错误: 请指定要执行的JLang文件");
         print_help();
         std::process::exit(1);
     }
@@ -145,12 +186,34 @@ fn main() {
 
 // 打印帮助信息
 fn print_help() {
-    println!("JsonLang 解释器 v0.3.0");
-    println!("用法: jsonlang [选项] <文件名>");
+    println!("JLang 解释器 v{}", *VERSION);
+    println!("用法: jlang [选项] <文件名>");
     println!("");
     println!("选项:");
     println!("  --debug                     启用调试模式，显示详细执行信息");
     println!("  --ignore-non-critical-errors 容错模式，只报告非关键错误而不终止程序");
     println!("  --check                     仅检查错误，不执行程序代码");
     println!("  --help                      显示此帮助信息");
+    println!("  --about                     显示关于信息");
+    println!("  --creator                   显示创建者信息");
+}
+
+// 打印关于信息
+fn print_about() {
+    println!("JLang 解释器 v{}", *VERSION);
+    println!("--------------------");
+    println!("{}", ABOUT);
+    println!("");
+    println!("项目地址: {}", REPO_URL);
+    println!("");
+    println!("JLang是一个开源项目，欢迎贡献代码和提交问题。");
+}
+
+// 打印创建者信息
+fn print_creator() {
+    println!("JLang 创建者: {}", CREATOR);
+    println!("--------------------");
+    println!("项目地址: {}", REPO_URL);
+    println!("");
+    println!("感谢您对JLang的支持和使用！");
 }

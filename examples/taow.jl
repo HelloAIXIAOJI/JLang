@@ -83,7 +83,7 @@
         },
         "main": {
             "body": [
-                {"echo": ["JsonLang 多层嵌套（套娃）测试\n\n"]},
+                {"echo": ["JLang 多层嵌套（套娃）测试\n\n"]},
                 {"var": {"max_depth": 5}},
                 {"echo": ["将测试 ", "@var.max_depth", " 层的函数调用嵌套\n"]},
                 {"process_level": [1, "@var.max_depth"]},

@@ -1,4 +1,4 @@
-# JsonLang
+# JLang
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg)
@@ -8,9 +8,9 @@
 
 [中文文档](README.zh.md)
 
-## What is JsonLang?
+## What is JLang?
 
-JsonLang is an experimental programming language that uses JSON as its syntax. It allows you to write programs using familiar JSON structures while providing programming capabilities like variables, loops, conditionals, and functions.
+JLang is an experimental programming language that uses JSON as its syntax. It allows you to write programs using familiar JSON structures while providing programming capabilities like variables, loops, conditionals, and functions.
 
 ```json
 {
@@ -18,7 +18,7 @@ JsonLang is an experimental programming language that uses JSON as its syntax. I
     "program": {
         "main": {
             "body": [
-                {"echo": ["Hello, JsonLang!", "\n"]},
+                {"echo": ["Hello, JLang!", "\n"]},
                 {"var": {"count": 0}},
                 {"while": {
                     "condition": {
@@ -47,7 +47,7 @@ JsonLang is an experimental programming language that uses JSON as its syntax. I
 - **Modules**: Import and use built-in or custom modules
 - **Weak Typing System**: Flexible type conversion, similar to PHP
 - **Nested Data Structures**: Access multi-level object properties
-- **System Command Execution**: Run external commands from JsonLang code
+- **System Command Execution**: Run external commands from JLang code
 
 ## Installation
 
@@ -65,7 +65,7 @@ cd JsonLang
 cargo build --release
 ```
 
-The executable will be available at `target/release/jsonlang`.
+The executable will be available at `target/release/jlang`.
 
 ## Quick Start
 
@@ -86,12 +86,12 @@ The executable will be available at `target/release/jsonlang`.
 2. Run it:
 
 ```bash
-jsonlang hello.jl
+jlang hello.jl
 ```
 
 ## Documentation
 
-For a comprehensive guide to JsonLang syntax and features, see:
+For a comprehensive guide to JLang syntax and features, see:
 
 - [Syntax Documentation](docs/syntax_en.md): Detailed syntax reference
 - [Examples](docs/examples.md): Example programs demonstrating various features
@@ -106,19 +106,44 @@ For a comprehensive guide to JsonLang syntax and features, see:
 
 ## Version History
 
+- **0.3.0**: Added object operations, regex support, enhanced switch statements, improved error handling, and new command-line options
 - **0.2.3**: Enhanced weak typing system, improved type conversion and comparison
 - **0.2.2**: Added system command execution capability
 - **0.2.1**: Added recursive function support and local variable scoping
 - **0.2.0**: Added comment system, enhanced module system, and multi-level data access
 - **0.1.0**: Initial version with basic functionality
 
+## Command Line Options
+
+JLang supports the following command line options:
+
+```bash
+# Display help information
+jlang --help
+
+# Display about information
+jlang --about
+
+# Display creator information
+jlang --creator
+
+# Run in debug mode (show detailed execution information)
+jlang --debug my_program.jl
+
+# Run in tolerance mode (report non-critical errors without terminating)
+jlang --ignore-non-critical-errors my_program.jl
+
+# Check for errors without executing the program
+jlang --check my_program.jl
+```
+
 ## Status
 
-JsonLang is experimental and not suitable for production use. While technically Turing complete, it was created as a programming experiment. Feel free to explore, learn, and contribute, but use mature languages for serious projects.
+JLang is experimental and not suitable for production use. While technically Turing complete, it was created as a programming experiment. Feel free to explore, learn, and contribute, but use mature languages for serious projects.
 
 ## License
 
-JsonLang is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+JLang is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
@@ -126,4 +151,4 @@ Contributions are welcome! Feel free to submit issues or pull requests.
 
 ## Acknowledgments
 
-JsonLang was created by AIXIAOJI as a fun programming experiment during the 2025 Labor Day holiday.
+JLang was created by AIXIAOJI as a fun programming experiment during the 2025 Labor Day holiday.

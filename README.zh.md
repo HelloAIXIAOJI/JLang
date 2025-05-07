@@ -1,4 +1,4 @@
-# JsonLang
+# JLang
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg)
@@ -8,9 +8,9 @@
 
 [English Documentation](README.md)
 
-## JsonLang是什么？
+## JLang是什么？
 
-JsonLang是一种实验性编程语言，使用JSON作为其语法。它允许您使用熟悉的JSON结构编写程序，同时提供变量、循环、条件、函数等编程功能。
+JLang是一种实验性编程语言，使用JSON作为其语法。它允许您使用熟悉的JSON结构编写程序，同时提供变量、循环、条件、函数等编程功能。
 
 ```json
 {
@@ -18,7 +18,7 @@ JsonLang是一种实验性编程语言，使用JSON作为其语法。它允许�
     "program": {
         "main": {
             "body": [
-                {"echo": ["你好，JsonLang！", "\n"]},
+                {"echo": ["你好，JLang！", "\n"]},
                 {"var": {"count": 0}},
                 {"while": {
                     "condition": {
@@ -47,7 +47,7 @@ JsonLang是一种实验性编程语言，使用JSON作为其语法。它允许�
 - **模块**：导入和使用内置或自定义模块
 - **弱类型系统**：灵活的类型转换，类似于PHP
 - **嵌套数据结构**：访问多层对象属性
-- **系统命令执行**：从JsonLang代码中运行外部命令
+- **系统命令执行**：从JLang代码中运行外部命令
 
 ## 安装
 
@@ -65,7 +65,7 @@ cd JsonLang
 cargo build --release
 ```
 
-可执行文件将在`target/release/jsonlang`中可用。
+可执行文件将在`target/release/jlang`中可用。
 
 ## 快速入门
 
@@ -86,12 +86,12 @@ cargo build --release
 2. 运行它：
 
 ```bash
-jsonlang hello.jl
+jlang hello.jl
 ```
 
 ## 文档
 
-有关JsonLang语法和功能的全面指南，请参阅：
+有关JLang语法和功能的全面指南，请参阅：
 
 - [语法文档](docs/syntax.md)：详细的语法参考
 - [示例](docs/examples_zh.md)：演示各种功能的示例程序
@@ -106,19 +106,44 @@ jsonlang hello.jl
 
 ## 版本历史
 
+- **0.3.0**：添加对象操作和正则表达式支持，增强switch语句，改进错误处理，新增命令行选项
 - **0.2.3**：增强弱类型系统，改进类型转换和比较
 - **0.2.2**：添加系统命令执行功能
 - **0.2.1**：添加递归函数支持和局部变量作用域
 - **0.2.0**：添加注释系统、增强模块系统和多层数据访问
 - **0.1.0**：具有基本功能的初始版本
 
+## 命令行选项
+
+JLang支持以下命令行选项：
+
+```bash
+# 显示帮助信息
+jlang --help
+
+# 显示关于信息
+jlang --about
+
+# 显示创建者信息
+jlang --creator
+
+# 以调试模式运行（显示详细执行信息）
+jlang --debug my_program.jl
+
+# 以容错模式运行（报告非关键错误但不终止）
+jlang --ignore-non-critical-errors my_program.jl
+
+# 检查错误但不执行程序
+jlang --check my_program.jl
+```
+
 ## 状态
 
-JsonLang是实验性的，不适用于生产环境。虽然在技术上是图灵完备的，但它是作为一个编程实验创建的。欢迎探索、学习和贡献，但请为严肃的项目使用成熟的语言。
+JLang是实验性的，不适用于生产环境。虽然在技术上是图灵完备的，但它是作为一个编程实验创建的。欢迎探索、学习和贡献，但请为严肃的项目使用成熟的语言。
 
 ## 许可证
 
-JsonLang采用MIT许可证。详情见[LICENSE](LICENSE)。
+JLang采用MIT许可证。详情见[LICENSE](LICENSE)。
 
 ## 贡献
 
@@ -126,4 +151,4 @@ JsonLang采用MIT许可证。详情见[LICENSE](LICENSE)。
 
 ## 致谢
 
-JsonLang由AIXIAOJI在2025年劳动节假期作为一个有趣的编程实验创建。 
+JLang由AIXIAOJI在2025年劳动节假期作为一个有趣的编程实验创建。 

@@ -7,7 +7,7 @@
     "program": {
         "main": {
             "body": [
-                {"var": {"message": "自豪的使用JsonLang开发!"}},
+                {"var": {"message": "自豪的使用JLang开发!"}},
                 {"var": {"name": "小kang"}},
                 {"echo": ["当前版本：", "@const.VERSION", "\\n"]},
                 {"echo": ["作者：", "@const.AUTHOR", "\\n"]},
