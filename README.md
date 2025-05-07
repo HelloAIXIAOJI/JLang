@@ -126,4 +126,4 @@ Contributions are welcome! Feel free to submit issues or pull requests.
 
 ## Acknowledgments
 
-JsonLang was created by AIXIAOJI as a fun programming experiment during the 2023 Labor Day holiday.
+JsonLang was created by AIXIAOJI as a fun programming experiment during the 2025 Labor Day holiday.
