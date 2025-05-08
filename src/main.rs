@@ -8,32 +8,8 @@ use interpreter::Interpreter;
 use modules::get_module;
 use std::path::Path;
 
-// 读取Cargo.toml获取版本信息
-fn get_version() -> String {
-    // 尝试读取Cargo.toml文件
-    let cargo_toml_path = Path::new("Cargo.toml");
-    if let Ok(contents) = fs::read_to_string(cargo_toml_path) {
-        // 解析TOML
-        if let Ok(parsed_toml) = contents.parse::<toml::Table>() {
-            // 获取版本信息
-            if let Some(package) = parsed_toml.get("package") {
-                if let Some(version) = package.get("version") {
-                    if let Some(version_str) = version.as_str() {
-                        return version_str.to_string();
-                    }
-                }
-            }
-        }
-    }
-    
-    // 如果无法从Cargo.toml获取，返回默认版本
-    "0.3.0".to_string()
-}
-
 // 程序信息常量
-lazy_static::lazy_static! {
-    static ref VERSION: String = get_version();
-}
+const VERSION: &str = env!("CARGO_PKG_VERSION", "0.3.0");
 const CREATOR: &str = "HelloAIXIAOJI";
 const ABOUT: &str = "JiLang是一种基于JSON的编程语言，理论图灵完备，支持弱类型、递归、模块化和系统调用。";
 const REPO_URL: &str = "https://github.com/HelloAIXIAOJI/JiLang";
@@ -186,7 +162,7 @@ fn main() {
 
 // 打印帮助信息
 fn print_help() {
-    println!("JiLang 解释器 v{}", *VERSION);
+    println!("JiLang 解释器 v{}", VERSION);
     println!("用法: JiLang [选项] <文件名>");
     println!("");
     println!("选项:");
@@ -200,7 +176,7 @@ fn print_help() {
 
 // 打印关于信息
 fn print_about() {
-    println!("JiLang 解释器 v{}", *VERSION);
+    println!("JiLang 解释器 v{}", VERSION);
     println!("--------------------");
     println!("{}", ABOUT);
     println!("");
