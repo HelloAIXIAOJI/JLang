@@ -1,4 +1,4 @@
-JLang 0.2.0 版本更新日志
+JiLang 0.2.0 版本更新日志
 
 主要特性：
 
@@ -69,8 +69,8 @@ JLang 0.2.0 版本更新日志
 ```
 
 使用说明：
-- 运行JLang程序：`jlang your_program.jl`
-- 调试模式：`jlang --debug your_program.jl`
+- 运行JiLang程序：`JiLang your_program.jl`
+- 调试模式：`JiLang --debug your_program.jl`
 
 注意事项：
 - 此版本与旧版程序兼容

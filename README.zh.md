@@ -1,4 +1,4 @@
-# JLang
+# JiLang
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg)
@@ -8,9 +8,9 @@
 
 [English Documentation](README.md)
 
-## JLang是什么？
+## JiLang是什么？
 
-JLang是一种实验性编程语言，使用JSON作为其语法。它允许您使用熟悉的JSON结构编写程序，同时提供变量、循环、条件、函数等编程功能。
+JiLang是一种实验性编程语言，使用JSON作为其语法。它允许您使用熟悉的JSON结构编写程序，同时提供变量、循环、条件、函数等编程功能。
 
 ```json
 {
@@ -18,7 +18,7 @@ JLang是一种实验性编程语言，使用JSON作为其语法。它允许您�
     "program": {
         "main": {
             "body": [
-                {"echo": ["你好，JLang！", "\n"]},
+                {"echo": ["你好，JiLang！", "\n"]},
                 {"var": {"count": 0}},
                 {"while": {
                     "condition": {
@@ -47,25 +47,25 @@ JLang是一种实验性编程语言，使用JSON作为其语法。它允许您�
 - **模块**：导入和使用内置或自定义模块
 - **弱类型系统**：灵活的类型转换，类似于PHP
 - **嵌套数据结构**：访问多层对象属性
-- **系统命令执行**：从JLang代码中运行外部命令
+- **系统命令执行**：从JiLang代码中运行外部命令
 
 ## 安装
 
 ### 预编译二进制文件
 
-从[发布页面](https://github.com/HelloAIXIAOJI/JsonLang/releases)下载最新版本。
+从[发布页面](https://github.com/HelloAIXIAOJI/JiLang/releases)下载最新版本。
 
 ### 从源代码构建
 
 确保已安装Rust，然后执行：
 
 ```bash
-git clone https://github.com/HelloAIXIAOJI/JsonLang.git
-cd JsonLang
+git clone https://github.com/HelloAIXIAOJI/JiLang.git
+cd JiLang
 cargo build --release
 ```
 
-可执行文件将在`target/release/jlang`中可用。
+可执行文件将在`target/release/JiLang`中可用。
 
 ## 快速入门
 
@@ -86,12 +86,12 @@ cargo build --release
 2. 运行它：
 
 ```bash
-jlang hello.jl
+JiLang hello.jl
 ```
 
 ## 文档
 
-有关JLang语法和功能的全面指南，请参阅：
+有关JiLang语法和功能的全面指南，请参阅：
 
 - [语法文档](docs/syntax.md)：详细的语法参考
 - [示例](docs/examples_zh.md)：演示各种功能的示例程序
@@ -115,35 +115,35 @@ jlang hello.jl
 
 ## 命令行选项
 
-JLang支持以下命令行选项：
+JiLang支持以下命令行选项：
 
 ```bash
 # 显示帮助信息
-jlang --help
+JiLang --help
 
 # 显示关于信息
-jlang --about
+JiLang --about
 
 # 显示创建者信息
-jlang --creator
+JiLang --creator
 
 # 以调试模式运行（显示详细执行信息）
-jlang --debug my_program.jl
+JiLang --debug my_program.jl
 
 # 以容错模式运行（报告非关键错误但不终止）
-jlang --ignore-non-critical-errors my_program.jl
+JiLang --ignore-non-critical-errors my_program.jl
 
 # 检查错误但不执行程序
-jlang --check my_program.jl
+JiLang --check my_program.jl
 ```
 
 ## 状态
 
-JLang是实验性的，不适用于生产环境。虽然在技术上是图灵完备的，但它是作为一个编程实验创建的。欢迎探索、学习和贡献，但请为严肃的项目使用成熟的语言。
+JiLang是实验性的，不适用于生产环境。虽然在技术上是图灵完备的，但它是作为一个编程实验创建的。欢迎探索、学习和贡献，但请为严肃的项目使用成熟的语言。
 
 ## 许可证
 
-JLang采用MIT许可证。详情见[LICENSE](LICENSE)。
+JiLang采用MIT许可证。详情见[LICENSE](LICENSE)。
 
 ## 贡献
 
@@ -151,4 +151,4 @@ JLang采用MIT许可证。详情见[LICENSE](LICENSE)。
 
 ## 致谢
 
-JLang由AIXIAOJI在2025年劳动节假期作为一个有趣的编程实验创建。 
+JiLang由AIXIAOJI在2025年劳动节假期作为一个有趣的编程实验创建。 

@@ -3,7 +3,7 @@
     "program": {
         "main": {
             "body": [
-                {"comment": "JLang 数组操作示例"},
+                {"comment": "JiLang 数组操作示例"},
                 
                 {"comment": "创建数组 - 空数组"},
                 {"array.create": []},

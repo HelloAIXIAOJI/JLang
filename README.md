@@ -1,4 +1,4 @@
-# JLang
+# JiLang
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg)
@@ -8,9 +8,9 @@
 
 [中文文档](README.zh.md)
 
-## What is JLang?
+## What is JiLang?
 
-JLang is an experimental programming language that uses JSON as its syntax. It allows you to write programs using familiar JSON structures while providing programming capabilities like variables, loops, conditionals, and functions.
+JiLang is an experimental programming language that uses JSON as its syntax. It allows you to write programs using familiar JSON structures while providing programming capabilities like variables, loops, conditionals, and functions.
 
 ```json
 {
@@ -18,7 +18,7 @@ JLang is an experimental programming language that uses JSON as its syntax. It a
     "program": {
         "main": {
             "body": [
-                {"echo": ["Hello, JLang!", "\n"]},
+                {"echo": ["Hello, JiLang!", "\n"]},
                 {"var": {"count": 0}},
                 {"while": {
                     "condition": {
@@ -47,25 +47,25 @@ JLang is an experimental programming language that uses JSON as its syntax. It a
 - **Modules**: Import and use built-in or custom modules
 - **Weak Typing System**: Flexible type conversion, similar to PHP
 - **Nested Data Structures**: Access multi-level object properties
-- **System Command Execution**: Run external commands from JLang code
+- **System Command Execution**: Run external commands from JiLang code
 
 ## Installation
 
 ### Pre-compiled Binaries
 
-Download the latest version from the [releases page](https://github.com/HelloAIXIAOJI/JsonLang/releases).
+Download the latest version from the [releases page](https://github.com/HelloAIXIAOJI/JiLang/releases).
 
 ### Building from Source
 
 Ensure you have Rust installed, then:
 
 ```bash
-git clone https://github.com/HelloAIXIAOJI/JsonLang.git
-cd JsonLang
+git clone https://github.com/HelloAIXIAOJI/JiLang.git
+cd JiLang
 cargo build --release
 ```
 
-The executable will be available at `target/release/jlang`.
+The executable will be available at `target/release/JiLang`.
 
 ## Quick Start
 
@@ -86,12 +86,12 @@ The executable will be available at `target/release/jlang`.
 2. Run it:
 
 ```bash
-jlang hello.jl
+JiLang hello.jl
 ```
 
 ## Documentation
 
-For a comprehensive guide to JLang syntax and features, see:
+For a comprehensive guide to JiLang syntax and features, see:
 
 - [Syntax Documentation](docs/syntax_en.md): Detailed syntax reference
 - [Examples](docs/examples.md): Example programs demonstrating various features
@@ -115,35 +115,35 @@ For a comprehensive guide to JLang syntax and features, see:
 
 ## Command Line Options
 
-JLang supports the following command line options:
+JiLang supports the following command line options:
 
 ```bash
 # Display help information
-jlang --help
+JiLang --help
 
 # Display about information
-jlang --about
+JiLang --about
 
 # Display creator information
-jlang --creator
+JiLang --creator
 
 # Run in debug mode (show detailed execution information)
-jlang --debug my_program.jl
+JiLang --debug my_program.jl
 
 # Run in tolerance mode (report non-critical errors without terminating)
-jlang --ignore-non-critical-errors my_program.jl
+JiLang --ignore-non-critical-errors my_program.jl
 
 # Check for errors without executing the program
-jlang --check my_program.jl
+JiLang --check my_program.jl
 ```
 
 ## Status
 
-JLang is experimental and not suitable for production use. While technically Turing complete, it was created as a programming experiment. Feel free to explore, learn, and contribute, but use mature languages for serious projects.
+JiLang is experimental and not suitable for production use. While technically Turing complete, it was created as a programming experiment. Feel free to explore, learn, and contribute, but use mature languages for serious projects.
 
 ## License
 
-JLang is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+JiLang is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
@@ -151,4 +151,4 @@ Contributions are welcome! Feel free to submit issues or pull requests.
 
 ## Acknowledgments
 
-JLang was created by AIXIAOJI as a fun programming experiment during the 2025 Labor Day holiday.
+JiLang was created by AIXIAOJI as a fun programming experiment during the 2025 Labor Day holiday.

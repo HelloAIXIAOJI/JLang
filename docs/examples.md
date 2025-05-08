@@ -1,10 +1,10 @@
-# JLang Examples
+# JiLang Examples
 
-This document contains examples of JLang programs that demonstrate various language features. These examples are designed to help you understand how to use JLang effectively.
+This document contains examples of JiLang programs that demonstrate various language features. These examples are designed to help you understand how to use JiLang effectively.
 
 ## Hello World
 
-The simplest JLang program:
+The simplest JiLang program:
 
 ```json
 {
@@ -21,7 +21,7 @@ The simplest JLang program:
 To run this program, save it to a file (e.g., `hello.jl`) and execute:
 
 ```bash
-jlang hello.jl
+JiLang hello.jl
 ```
 
 ## Variables and Constants
@@ -30,7 +30,7 @@ jlang hello.jl
 {
     "const": {
         "PI": 3.14159,
-        "APP_NAME": "My JLang App"
+        "APP_NAME": "My JiLang App"
     },
     "program": {
         "main": {
@@ -99,7 +99,7 @@ jlang hello.jl
 }
 ```
 
-For more examples, see the `examples` directory in the JLang repository.
+For more examples, see the `examples` directory in the JiLang repository.
 
 ## Basic Examples
 
@@ -107,20 +107,20 @@ For more examples, see the `examples` directory in the JLang repository.
 A simple "Hello World" program that demonstrates basic output with the `echo` statement and basic variable usage.
 
 ### [test.json](../examples/test.json)
-A basic program that demonstrates printing "Hello, JLang!" and a simple counting loop.
+A basic program that demonstrates printing "Hello, JiLang!" and a simple counting loop.
 
 ## Control Flow Examples
 
 ### [loop_test.jl](../examples/loop_test.jl)
-Demonstrates the use of both `for` and `while` loops in JLang.
+Demonstrates the use of both `for` and `while` loops in JiLang.
 
 ### [weak_typing_demo.jl](../examples/weak_typing_demo.jl)
-A comprehensive demonstration of JLang's weak typing system, showing automatic type conversions between different data types in various operations.
+A comprehensive demonstration of JiLang's weak typing system, showing automatic type conversions between different data types in various operations.
 
 ## Function Examples
 
 ### [simplified_syntax_test.jl](../examples/simplified_syntax_test.jl)
-Shows the simplified syntax for function calls in JLang, using direct syntax `{"function": [args]}` instead of `{"call": ["function", args]}`.
+Shows the simplified syntax for function calls in JiLang, using direct syntax `{"function": [args]}` instead of `{"call": ["function", args]}`.
 
 ### [digui.jl](../examples/digui.jl), [digui2.jl](../examples/digui2.jl), [digui3.jl](../examples/digui3.jl), [digui4.jl](../examples/digui4.jl), [digui5.jl](../examples/digui5.jl)
 Various examples of recursive function implementations, particularly focusing on the factorial calculation.
@@ -131,7 +131,7 @@ Implementation of the Fibonacci sequence calculation using recursive functions.
 ## Module System Examples
 
 ### [module_test.jl](../examples/module_test.jl)
-Demonstrates how to use the module system in JLang with standard module call syntax: `{"call": ["module.function", args]}`.
+Demonstrates how to use the module system in JiLang with standard module call syntax: `{"call": ["module.function", args]}`.
 
 ### [simplified_module_test.jl](../examples/simplified_module_test.jl)
 Shows how to use the module system with simplified call syntax: `{"module.function": [args]}`.
@@ -145,15 +145,15 @@ Demonstrates importing and using custom modules.
 ## Language Features
 
 ### [comment_test.jl](../examples/comment_test.jl)
-Shows how to use single-line and multi-part comments in JLang.
+Shows how to use single-line and multi-part comments in JiLang.
 
 ### [error_test.jl](../examples/error_test.jl)
-Demonstrates error handling and common error patterns in JLang.
+Demonstrates error handling and common error patterns in JiLang.
 
 ## System Integration
 
 ### [exec_demo.jl](../examples/exec_demo.jl)
-Shows how to execute system commands from JLang.
+Shows how to execute system commands from JiLang.
 
 ### [exec_unix_demo.jl](../examples/exec_unix_demo.jl)
 Unix-specific example of executing system commands.
@@ -161,21 +161,21 @@ Unix-specific example of executing system commands.
 ## Advanced Examples
 
 ### [taow.jl](../examples/taow.jl)
-A more complex program demonstrating multiple JLang features working together, including nested data structures and functions.
+A more complex program demonstrating multiple JiLang features working together, including nested data structures and functions.
 
 ### [uni.jl](../examples/uni.jl)
 Demonstrates an infinite loop implementation, useful for understanding how to create and (manually) terminate long-running processes.
 
 ## Running the Examples
 
-Run any example using the JLang interpreter:
+Run any example using the JiLang interpreter:
 
 ```bash
-jlang examples/hello_world.jl
+JiLang examples/hello_world.jl
 ```
 
 To see additional debug information, use:
 
 ```bash
-jlang --debug examples/loop_test.jl
+JiLang --debug examples/loop_test.jl
 ``` 

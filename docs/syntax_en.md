@@ -1,6 +1,6 @@
-# JLang Syntax Reference
+# JiLang Syntax Reference
 
-This document provides a detailed description of the JLang programming language syntax. JLang is a JSON-based programming language that allows you to write programs using familiar JSON structure while providing programming features like variables, loops, conditionals, and functions.
+This document provides a detailed description of the JiLang programming language syntax. JiLang is a JSON-based programming language that allows you to write programs using familiar JSON structure while providing programming features like variables, loops, conditionals, and functions.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This document provides a detailed description of the JLang programming language 
 
 ## 1. Program Structure
 
-A JLang program is a JSON object with the following top-level fields:
+A JiLang program is a JSON object with the following top-level fields:
 
 ```json
 {
@@ -46,7 +46,7 @@ A JLang program is a JSON object with the following top-level fields:
 
 ## 2. Data Types
 
-JLang supports the following data types:
+JiLang supports the following data types:
 
 - Strings: `"hello"`
 - Numbers: `123`, `3.14`
@@ -116,7 +116,7 @@ Use the `@const.constant_name` syntax to reference constants:
 
 ### 4.3 Comments
 
-JLang supports comments through the `comment` statement in two forms:
+JiLang supports comments through the `comment` statement in two forms:
 
 1. Single-line comment (string form):
 ```json
@@ -253,7 +253,7 @@ Example:
 
 #### 4.7.2 For Loop
 
-JLang supports two for loop syntaxes:
+JiLang supports two for loop syntaxes:
 
 1. Range syntax (recommended):
 ```json
@@ -379,12 +379,12 @@ Example:
 
 ## 6. Command Line Arguments
 
-The JLang interpreter supports the following command line arguments:
+The JiLang interpreter supports the following command line arguments:
 
 ### 6.1 Basic Usage
 
 ```bash
-jlang [options] <program_file_path>
+JiLang [options] <program_file_path>
 ```
 
 ### 6.2 Debug Mode
@@ -392,7 +392,7 @@ jlang [options] <program_file_path>
 Use the `--debug` parameter to enable debug mode, which displays additional debug information:
 
 ```bash
-jlang --debug <program_file_path>
+JiLang --debug <program_file_path>
 ```
 
 In debug mode, the interpreter outputs additional information, such as:
@@ -401,17 +401,17 @@ In debug mode, the interpreter outputs additional information, such as:
 Example:
 ```bash
 # Normal mode (no debug info)
-jlang examples/loop_test.jl
+JiLang examples/loop_test.jl
 
 # Debug mode (shows debug info)
-jlang --debug examples/loop_test.jl
+JiLang --debug examples/loop_test.jl
 ```
 
 ## 7. Advanced Features
 
 ### 7.1 Recursive Functions
 
-JLang fully supports recursive function calls, enabling complex algorithms like factorial, Fibonacci sequences, etc.
+JiLang fully supports recursive function calls, enabling complex algorithms like factorial, Fibonacci sequences, etc.
 
 Example (recursive factorial implementation):
 ```json
@@ -454,7 +454,7 @@ Example (recursive factorial implementation):
 
 ### 7.2 Weak Typing System
 
-JLang features a weak typing system that automatically converts between types:
+JiLang features a weak typing system that automatically converts between types:
 
 - String numbers ("42") convert to actual numbers in math operations
 - Boolean values convert to 1 (true) or 0 (false) in numeric contexts
@@ -470,7 +470,7 @@ Example:
 
 ### 7.3 Modules
 
-JLang supports both built-in modules and custom modules:
+JiLang supports both built-in modules and custom modules:
 
 #### 7.3.1 Built-in Modules
 

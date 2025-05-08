@@ -2,7 +2,7 @@
     "program": {
         "main": {
             "body": [
-                {"echo": ["JLang 系统命令执行示例 (Unix版)\n\n"]},
+                {"echo": ["JiLang 系统命令执行示例 (Unix版)\n\n"]},
                 
                 {"comment": "显示当前目录"},
                 {"exec": {
@@ -13,7 +13,7 @@
                 {"echo": ["当前目录内容：\n", "@var.dir_output.stdout", "\n"]},
                 
                 {"comment": "创建一个临时文件"},
-                {"var": {"content": "这是通过JLang创建的文件\n来自系统命令执行功能\n"}},
+                {"var": {"content": "这是通过JiLang创建的文件\n来自系统命令执行功能\n"}},
                 {"exec": {
                     "cmd": "echo",
                     "args": ["@var.content", ">", "temp_file.txt"],

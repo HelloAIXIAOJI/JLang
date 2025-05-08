@@ -35,8 +35,8 @@ lazy_static::lazy_static! {
     static ref VERSION: String = get_version();
 }
 const CREATOR: &str = "HelloAIXIAOJI";
-const ABOUT: &str = "JLang是一种基于JSON的编程语言，理论图灵完备，支持弱类型、递归、模块化和系统调用。";
-const REPO_URL: &str = "https://github.com/HelloAIXIAOJI/JLang";
+const ABOUT: &str = "JiLang是一种基于JSON的编程语言，理论图灵完备，支持弱类型、递归、模块化和系统调用。";
+const REPO_URL: &str = "https://github.com/HelloAIXIAOJI/JiLang";
 
 // 全局调试模式标志
 static mut DEBUG_MODE: bool = false;
@@ -108,7 +108,7 @@ fn main() {
     }
     
     if filename.is_empty() {
-        eprintln!("错误: 请指定要执行的JLang文件");
+        eprintln!("错误: 请指定要执行的JiLang文件");
         print_help();
         std::process::exit(1);
     }
@@ -186,8 +186,8 @@ fn main() {
 
 // 打印帮助信息
 fn print_help() {
-    println!("JLang 解释器 v{}", *VERSION);
-    println!("用法: jlang [选项] <文件名>");
+    println!("JiLang 解释器 v{}", *VERSION);
+    println!("用法: JiLang [选项] <文件名>");
     println!("");
     println!("选项:");
     println!("  --debug                     启用调试模式，显示详细执行信息");
@@ -200,23 +200,23 @@ fn print_help() {
 
 // 打印关于信息
 fn print_about() {
-    println!("JLang 解释器 v{}", *VERSION);
+    println!("JiLang 解释器 v{}", *VERSION);
     println!("--------------------");
     println!("{}", ABOUT);
     println!("");
     println!("项目地址: {}", REPO_URL);
     println!("");
-    println!("JLang是一个开源项目，欢迎贡献代码和提交问题。");
+    println!("JiLang是一个开源项目，欢迎贡献代码和提交问题。");
 }
 
 // 打印创建者信息
 fn print_creator() {
-    println!("JLang 创建者: {}", CREATOR);
+    println!("JiLang 创建者: {}", CREATOR);
     println!("--------------------");
     println!("项目地址: {}", REPO_URL);
     println!("");
-    println!("感谢所有参与JLang开发和贡献的人！无论贡献方式，感谢您们的贡献！");
+    println!("感谢所有参与JiLang开发和贡献的人！无论贡献方式，感谢您们的贡献！");
     println!("如果不出意外，您可以在'https://jl.opens.ltd/maker'找到核心贡献者。或直接在Github上找到。");
     println!("");
-    println!("感谢您对JLang的支持和使用！");
+    println!("感谢您对JiLang的支持和使用！");
 }
