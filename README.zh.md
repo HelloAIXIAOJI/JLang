@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Language: Rust](https://img.shields.io/badge/Language-Rust-orange.svg)
 ![Status: Experimental](https://img.shields.io/badge/Status-Experimental-blue.svg)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HelloAIXIAOJI/JsonLang)
 
 *基于JSON语法的编程语言 - 现已图灵完备！（理论）*
 
@@ -151,4 +152,8 @@ JiLang采用MIT许可证。详情见[LICENSE](LICENSE)。
 
 ## 致谢
 
+<<<<<<< HEAD
 JiLang由AIXIAOJI在2025年劳动节假期作为一个有趣的编程实验创建。 
+=======
+JLang由AIXIAOJI在2025年劳动节假期作为一个有趣的编程实验创建。 
+>>>>>>> 9a79a65a60a03386c95695a5c54b72161681d5ab
