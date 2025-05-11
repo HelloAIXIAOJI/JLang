@@ -105,15 +105,6 @@ For a comprehensive guide to JiLang syntax and features, see:
 - Module functions are called using `module_name.function_name` syntax
 - Statements are represented as JSON objects with a single property
 
-## Version History
-
-- **0.3.0**: Added object operations, regex support, enhanced switch statements, improved error handling, and new command-line options
-- **0.2.3**: Enhanced weak typing system, improved type conversion and comparison
-- **0.2.2**: Added system command execution capability
-- **0.2.1**: Added recursive function support and local variable scoping
-- **0.2.0**: Added comment system, enhanced module system, and multi-level data access
-- **0.1.0**: Initial version with basic functionality
-
 ## Command Line Options
 
 JiLang supports the following command line options:

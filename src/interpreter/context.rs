@@ -3,6 +3,7 @@ use serde_json::Value;
 use crate::modules;
 use super::error::{InterpreterError, Result};
 use super::error::error_messages::context as error_msg;
+use super::variable_reference::{VariableReference, ReferenceType};
 
 pub struct Context {
     pub variables: HashMap<String, Value>,
@@ -81,95 +82,10 @@ impl Context {
         Ok(context)
     }
 
-    pub fn get_value(&self, text: &str) -> Option<&Value> {
-        if text.starts_with("@var.") {
-            let var_path = &text[5..];
-            
-            // 处理数组索引访问，如 array[0]
-            if let Some(bracket_pos) = var_path.find('[') {
-                if let Some(end_bracket) = var_path.find(']') {
-                    if bracket_pos < end_bracket {
-                        let base_var = &var_path[0..bracket_pos];
-                        let index_str = &var_path[bracket_pos+1..end_bracket];
-                        
-                        // 尝试将索引解析为数字
-                        if let Ok(index) = index_str.parse::<usize>() {
-                            if let Some(array_value) = self.variables.get(base_var) {
-                                if let Some(arr) = array_value.as_array() {
-                                    return arr.get(index);
-                                }
-                            }
-                        }
-                        return None;
-                    }
-                }
-            }
-            
-            // 处理多层嵌套路径，如 nested_data.level1.level2...
-            if var_path.contains('.') {
-                let parts: Vec<&str> = var_path.split('.').collect();
-                let base_var = parts[0];
-                
-                if let Some(base_value) = self.variables.get(base_var) {
-                    let mut current_value = base_value;
-                    
-                    // 遍历路径中的每一段
-                    for &part in &parts[1..] {
-                        // 检查是否有数组索引
-                        if let Some(bracket_pos) = part.find('[') {
-                            if let Some(end_bracket) = part.find(']') {
-                                if bracket_pos < end_bracket {
-                                    let obj_key = &part[0..bracket_pos];
-                                    let index_str = &part[bracket_pos+1..end_bracket];
-                                    
-                                    // 先获取对象属性
-                                    if let Some(obj) = current_value.as_object() {
-                                        if let Some(array_value) = obj.get(obj_key) {
-                                            // 再获取数组索引
-                                            if let Ok(index) = index_str.parse::<usize>() {
-                                                if let Some(arr) = array_value.as_array() {
-                                                    if let Some(item) = arr.get(index) {
-                                                        current_value = item;
-                                                        continue;
-                                                    }
-                                                }
-                                            }
-                                            return None;
-                                        }
-                                    }
-                                    return None;
-                                }
-                            }
-                        }
-                        
-                        // 普通对象属性访问
-                        if let Some(obj) = current_value.as_object() {
-                            if let Some(next_value) = obj.get(part) {
-                                current_value = next_value;
-                            } else {
-                                // 路径中的某一段不存在
-                                return None;
-                            }
-                        } else {
-                            // 当前值不是对象，无法继续访问
-                            return None;
-                        }
-                    }
-                    
-                    return Some(current_value);
-                } else {
-                    return None;  // 基础变量不存在
-                }
-            } else {
-                // 原有的简单变量访问
-                return self.variables.get(var_path);
-            }
-        } else if text.starts_with("@params.") {
-            let var_name = &text[8..];
-            self.variables.get(var_name)
-        } else if text.starts_with("@const.") {
-            let const_name = &text[7..];
-            self.constants.get(const_name)
+    pub fn get_value(&self, text: &str) -> Option<Value> {
+        if VariableReference::is_reference(text) {
+            let var_ref = VariableReference::parse(text);
+            Some(var_ref.resolve_value(&self.variables, &self.constants))
         } else {
             None
         }
@@ -188,24 +104,51 @@ impl Context {
     pub fn resolve_value(&self, value: &Value) -> String {
         match value {
             Value::String(text) => {
-                if text.starts_with("@") {
-                    if let Some(resolved) = self.get_value(text) {
-                        match resolved {
-                            Value::String(s) => self.process_special_chars(s),
-                            Value::Number(n) => n.to_string(),
-                            _ => resolved.to_string()
-                        }
-                    } else {
-                        self.process_special_chars(text)
+                if VariableReference::is_reference(text) {
+                    let var_ref = VariableReference::parse(text);
+                    match var_ref.resolve_value(&self.variables, &self.constants) {
+                        Value::String(s) => s.to_string(),
+                        Value::Number(n) => n.to_string(),
+                        Value::Bool(b) => b.to_string(),
+                        Value::Null => "null".to_string(),
+                        Value::Array(_) => "<array>".to_string(),
+                        Value::Object(_) => "<object>".to_string(),
                     }
                 } else {
-                    self.process_special_chars(text)
+                    text.to_string()
                 }
-            }
+            },
             Value::Number(n) => n.to_string(),
             Value::Bool(b) => b.to_string(),
             Value::Null => "null".to_string(),
-            _ => value.to_string()
+            Value::Array(_) => "<array>".to_string(),
+            Value::Object(_) => "<object>".to_string(),
+        }
+    }
+
+    pub fn resolve_value_with_error(&self, value: &Value) -> Result<String> {
+        match value {
+            Value::String(text) => {
+                if VariableReference::is_reference(text) {
+                    let var_ref = VariableReference::parse(text);
+                    let resolved = var_ref.resolve_value_with_error(&self.variables, &self.constants)?;
+                    Ok(match resolved {
+                        Value::String(s) => s.to_string(),
+                        Value::Number(n) => n.to_string(),
+                        Value::Bool(b) => b.to_string(),
+                        Value::Null => "null".to_string(),
+                        Value::Array(_) => "<array>".to_string(),
+                        Value::Object(_) => "<object>".to_string(),
+                    })
+                } else {
+                    Ok(text.to_string())
+                }
+            },
+            Value::Number(n) => Ok(n.to_string()),
+            Value::Bool(b) => Ok(b.to_string()),
+            Value::Null => Ok("null".to_string()),
+            Value::Array(_) => Ok("<array>".to_string()),
+            Value::Object(_) => Ok("<object>".to_string()),
         }
     }
 
@@ -236,5 +179,7 @@ impl Context {
 // 检查是否是内置语句
 fn is_builtin_statement(name: &str) -> bool {
     matches!(name, "var" | "echo" | "concat" | "if" | "call" | "while" | "for" | "comment" | "exec" | "switch" 
-             | "array.create" | "array.push" | "array.pop" | "array.get" | "array.set" | "array.length" | "array.slice")
+             | "array.create" | "array.push" | "array.pop" | "array.get" | "array.set" | "array.length" | "array.slice"
+             | "object.create" | "object.get" | "object.set" | "object.has" | "object.keys" | "object.values" | "object.delete"
+             | "regex.match" | "regex.test" | "regex.replace" | "regex.split")
 } 

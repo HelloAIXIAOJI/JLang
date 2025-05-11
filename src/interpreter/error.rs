@@ -119,6 +119,16 @@ pub mod error_messages {
             pub const DEFAULT_BODY_NOT_ARRAY: &str = "default case 'body' 必须是一个数组，咿呀～default的body要是数组～";
         }
         
+        // try-catch错误处理语句
+        pub mod try_catch {
+            pub const MISSING_FIELDS: &str = "'try' 语句缺少 'try' 或 'catch' 字段，啊呀～try-catch写错啦～";
+            pub const ARGS_NOT_OBJ: &str = "'try' 语句的参数必须是一个对象，喵～try参数不对哦～";
+            pub const TRY_BODY_NOT_ARRAY: &str = "'try' 字段必须是一个数组，呜～try的body应该是数组啦～";
+            pub const CATCH_BODY_NOT_ARRAY: &str = "'catch' 字段必须是一个数组，咿呀～catch的body应该是数组才对～";
+            pub const FINALLY_BODY_NOT_ARRAY: &str = "'finally' 字段必须是一个数组，哎呀～finally的body也需要是数组～";
+            pub const ERROR_VAR_NOT_STRING: &str = "'error_var' 必须是一个字符串，喵喵～变量名必须是字符串啦～";
+        }
+        
         // 数组操作错误
         pub mod array {
             pub const CREATE_SIZE_NOT_NUMBER: &str = "'array.create' 的 'size' 参数必须是一个数字，呜姆～数组大小应该是数字啦～";
@@ -198,5 +208,11 @@ pub mod error_messages {
                 format!("执行命令失败: {}，哎哟～命令执行炸了～", err)
             }
         }
+    }
+
+    // 添加数学运算相关的错误消息
+    pub mod math {
+        pub const DIVISION_BY_ZERO: &str = "除数不能为零，呜哇～这样会爆炸的！";
+        pub const INVALID_NUMBER_CONVERSION: &str = "无法将值转换为数字，哼～这根本不是数字啦！";
     }
 } 

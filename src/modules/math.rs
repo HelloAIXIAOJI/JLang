@@ -2,6 +2,9 @@ use serde_json::Value;
 use crate::interpreter::context::Context;
 use super::Module;
 use crate::interpreter::error::{InterpreterError, Result};
+use crate::interpreter::error::error_messages::math;
+use crate::interpreter::variable_reference::VariableReference;
+use std::panic;
 
 pub struct MathModule;
 
@@ -13,19 +16,22 @@ impl MathModule {
     fn get_number(value: &Value, context: &Context) -> Result<f64> {
         match value {
             Value::Number(n) => n.as_f64().ok_or_else(|| 
-                InterpreterError::RuntimeError("无法将数字转换为浮点数".to_string())
+                InterpreterError::RuntimeError(math::INVALID_NUMBER_CONVERSION.to_string())
             ),
             Value::String(s) => {
-                if s.starts_with("@") {
+                if VariableReference::is_reference(s) {
                     if let Some(resolved) = context.get_value(s) {
-                        match resolved {
+                        match &resolved {
                             Value::Number(n) => n.as_f64().ok_or_else(|| 
-                                InterpreterError::RuntimeError("无法将数字转换为浮点数".to_string())
+                                InterpreterError::RuntimeError(math::INVALID_NUMBER_CONVERSION.to_string())
                             ),
                             Value::String(s) => s.parse().map_err(|_| 
                                 InterpreterError::RuntimeError(format!("无法将字符串 '{}' 转换为数字", s))
                             ),
-                            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
+                            Value::Bool(b) => {
+                                let bool_value = *b;
+                                Ok(if bool_value { 1.0 } else { 0.0 })
+                            },
                             Value::Null => Ok(0.0),
                             Value::Array(arr) => {
                                 if arr.is_empty() {
@@ -57,7 +63,10 @@ impl MathModule {
                     )
                 }
             },
-            Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
+            Value::Bool(b) => {
+                let bool_value = *b;
+                Ok(if bool_value { 1.0 } else { 0.0 })
+            },
             Value::Null => Ok(0.0),
             Value::Array(arr) => {
                 if arr.is_empty() {
@@ -125,18 +134,37 @@ impl MathModule {
     }
 
     fn divide(args: &[Value], context: &mut Context) -> Value {
-        match args.first().map(|v| Self::get_number(v, context)) {
-            Some(Ok(first)) => {
-                let result = args[1..].iter()
-                    .filter_map(|v| Self::get_number(v, context).ok())
-                    .fold(first, |acc, x| if x != 0.0 { acc / x } else { f64::NAN });
+        if args.is_empty() {
+            return Value::Number(serde_json::Number::from_f64(0.0).unwrap());
+        }
+        
+        match Self::get_number(&args[0], context) {
+            Ok(first) => {
+                let mut result = first;
+                
+                // 尝试将所有后续参数转换为数字并进行除法运算
+                for arg in &args[1..] {
+                    match Self::get_number(arg, context) {
+                        Ok(divisor) => {
+                            if divisor == 0.0 {
+                                // 除以零错误
+                                panic!("{}", math::DIVISION_BY_ZERO);
+                            }
+                            result /= divisor;
+                        },
+                        Err(err) => {
+                            eprintln!("错误: {}", err);
+                            return Value::Number(serde_json::Number::from_f64(0.0).unwrap());
+                        }
+                    }
+                }
+                
                 Value::Number(serde_json::Number::from_f64(result).unwrap_or(serde_json::Number::from_f64(0.0).unwrap()))
-            }
-            Some(Err(err)) => {
+            },
+            Err(err) => {
                 eprintln!("错误: {}", err);
                 Value::Number(serde_json::Number::from_f64(0.0).unwrap())
             }
-            None => Value::Number(serde_json::Number::from_f64(0.0).unwrap())
         }
     }
 
