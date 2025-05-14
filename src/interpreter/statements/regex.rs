@@ -4,7 +4,7 @@ use super::super::context::Context;
 use super::super::error::{InterpreterError, Result};
 
 // execute_regex_match - 正则表达式匹配
-pub fn execute_regex_match(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_regex_match(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -56,10 +56,8 @@ pub fn execute_regex_match(args: &Value, context: &mut Context) -> Result<()> {
             Value::Null
         };
         
-        // 存储结果
-        context.set_variable("result".to_string(), result)?;
-        
-        Ok(())
+        // 返回结果
+        Ok(result)
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'regex.match' 语句的参数必须是一个数组".to_string()
@@ -68,7 +66,7 @@ pub fn execute_regex_match(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_regex_test - 正则表达式测试
-pub fn execute_regex_test(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_regex_test(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -95,10 +93,8 @@ pub fn execute_regex_test(args: &Value, context: &mut Context) -> Result<()> {
         // 执行测试
         let is_match = regex.is_match(&text);
         
-        // 存储结果
-        context.set_variable("result".to_string(), Value::Bool(is_match))?;
-        
-        Ok(())
+        // 返回结果
+        Ok(Value::Bool(is_match))
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'regex.test' 语句的参数必须是一个数组".to_string()
@@ -107,7 +103,7 @@ pub fn execute_regex_test(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_regex_replace - 正则表达式替换
-pub fn execute_regex_replace(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_regex_replace(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 3 {
             return Err(InterpreterError::RuntimeError(
@@ -137,10 +133,8 @@ pub fn execute_regex_replace(args: &Value, context: &mut Context) -> Result<()> 
         // 执行替换，支持最多9个捕获组的引用($1-$9)
         let result = regex.replace_all(&text, replacement.as_str()).to_string();
         
-        // 存储结果
-        context.set_variable("result".to_string(), Value::String(result))?;
-        
-        Ok(())
+        // 返回结果
+        Ok(Value::String(result))
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'regex.replace' 语句的参数必须是一个数组".to_string()
@@ -149,7 +143,7 @@ pub fn execute_regex_replace(args: &Value, context: &mut Context) -> Result<()> 
 }
 
 // execute_regex_split - 正则表达式分割
-pub fn execute_regex_split(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_regex_split(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -178,10 +172,8 @@ pub fn execute_regex_split(args: &Value, context: &mut Context) -> Result<()> {
             .map(|s| Value::String(s.to_string()))
             .collect();
         
-        // 存储结果
-        context.set_variable("result".to_string(), Value::Array(parts))?;
-        
-        Ok(())
+        // 返回结果
+        Ok(Value::Array(parts))
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'regex.split' 语句的参数必须是一个数组".to_string()

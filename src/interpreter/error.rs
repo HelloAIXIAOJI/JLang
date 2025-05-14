@@ -92,6 +92,7 @@ pub mod error_messages {
         pub const INVALID_FUNCTION_CALL: &str = "无效的函数调用，哼～函数调用失败啦！";
         pub const FUNCTION_MISSING_BODY: &str = "函数缺少 'body' 字段，欸？函数体不见了？";
         pub const FUNCTION_BODY_NOT_ARRAY: &str = "函数 'body' 必须是一个数组，呐呐～函数体必须是数组哦～";
+        pub const CALL_DEPRECATED: &str = "call语句已被弃用，请使用--allow-call临时启用。呜呜～call酱已经被抛弃了！可以用--allow-call暂时召唤她回来哦～";
         
         // 控制流相关错误
         pub mod control_flow {

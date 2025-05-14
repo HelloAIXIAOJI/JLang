@@ -3,9 +3,10 @@ use super::super::context::Context;
 use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement::{self, array};
 use super::super::variable_reference::{VariableReference, ReferenceType};
+use super::{execute_statement, is_builtin_statement};
 
 // execute_array_create - 创建新数组
-pub fn execute_array_create(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_create(args: &Value, context: &mut Context) -> Result<Value> {
     let result = if let Some(args_array) = args.as_array() {
         // 如果提供了初始元素，则使用它们创建数组
         // 处理每个元素，解析变量引用
@@ -68,12 +69,11 @@ pub fn execute_array_create(args: &Value, context: &mut Context) -> Result<()> {
         Value::Array(Vec::new())
     };
     
-    context.set_variable("result".to_string(), result)?;
-    Ok(())
+    Ok(result)
 }
 
 // execute_array_push - 向数组末尾添加元素
-pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -143,10 +143,8 @@ pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<()> {
         // 更新数组变量
         context.set_variable(array_var_name, Value::Array(array.clone()))?;
         
-        // 将修改后的数组也存储在result变量中
-        context.set_variable("result".to_string(), Value::Array(array))?;
-        
-        Ok(())
+        // 返回修改后的数组
+        Ok(Value::Array(array))
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.push")
@@ -155,7 +153,7 @@ pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_pop - 从数组末尾移除元素
-pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::RuntimeError(
@@ -213,10 +211,8 @@ pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<()> {
         // 更新数组变量
         context.set_variable(array_var_name.to_string(), Value::Array(array))?;
         
-        // 将弹出的元素存储在result变量中
-        context.set_variable("result".to_string(), popped)?;
-        
-        Ok(())
+        // 返回弹出的元素
+        Ok(popped)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.pop")
@@ -225,7 +221,7 @@ pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_get - 获取数组指定索引的元素
-pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -305,10 +301,8 @@ pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<()> {
             Value::Null
         };
         
-        // 存储结果
-        context.set_variable("result".to_string(), element)?;
-        
-        Ok(())
+        // 返回元素
+        Ok(element)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.get")
@@ -317,7 +311,7 @@ pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_set - 设置数组指定索引的元素
-pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 3 {
             return Err(InterpreterError::RuntimeError(
@@ -401,10 +395,8 @@ pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<()> {
         // 更新数组变量
         context.set_variable(array_var_name.to_string(), Value::Array(array.clone()))?;
         
-        // 将修改后的数组也存储在result变量中
-        context.set_variable("result".to_string(), Value::Array(array))?;
-        
-        Ok(())
+        // 返回修改后的数组
+        Ok(Value::Array(array))
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.set")
@@ -413,7 +405,7 @@ pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_length - 获取数组长度
-pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::RuntimeError(
@@ -452,10 +444,8 @@ pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<()> {
         // 获取长度
         let length = array.len();
         
-        // 存储结果
-        context.set_variable("result".to_string(), Value::Number(serde_json::Number::from(length)))?;
-        
-        Ok(())
+        // 返回长度
+        Ok(Value::Number(serde_json::Number::from(length)))
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.length")
@@ -464,85 +454,199 @@ pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_slice - 获取数组切片
-pub fn execute_array_slice(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_slice(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
                 array::SLICE_MISSING_ARGS.to_string()
             ));
         }
+
+        // 获取数组参数
+        let array_arg = &args_array[0];
+        let mut array_value = array_arg.clone();
         
-        // 获取数组
-        let array_value = if let Some(array_ref_str) = args_array[0].as_str() {
-            if VariableReference::is_reference(array_ref_str) {
-                if let Some(val) = context.get_value(array_ref_str) {
-                    val.clone()
-                } else {
-                    return Err(InterpreterError::RuntimeError(
-                        array::var_not_found(array_ref_str)
-                    ));
+        // 处理变量引用
+        if let Some(array_str) = array_arg.as_str() {
+            if VariableReference::is_reference(array_str) {
+                if let Some(var_value) = context.get_value(array_str) {
+                    array_value = var_value.clone();
                 }
-            } else {
-                return Err(InterpreterError::RuntimeError(
-                    array::SLICE_FIRST_ARG_NOT_ARRAY_REF.to_string()
-                ));
             }
-        } else {
-            args_array[0].clone()
-        };
+        } else if let Some(obj) = array_arg.as_object() {
+            // 检查是否是嵌套函数调用
+            if obj.len() == 1 {
+                if let Some((nested_type, nested_args)) = obj.iter().next() {
+                    if is_builtin_statement(nested_type) || nested_type.contains('.') {
+                        let nested_result = execute_statement(nested_type, nested_args, context)?;
+                        array_value = nested_result;
+                    }
+                }
+            }
+        }
         
         // 确保是数组类型
-        let array = if let Value::Array(arr) = array_value {
-            arr
-        } else {
+        if !array_value.is_array() {
             return Err(InterpreterError::RuntimeError(
                 array::SLICE_FIRST_ARG_NOT_ARRAY.to_string()
             ));
-        };
+        }
         
-        // 获取开始索引
-        let start_value = context.resolve_value(&args_array[1]);
-        let start = if let Ok(idx) = start_value.parse::<usize>() {
-            idx
-        } else {
-            return Err(InterpreterError::RuntimeError(
-                array::SLICE_SECOND_ARG_NOT_INDEX.to_string()
-            ));
-        };
+        let array = array_value.as_array().unwrap();
         
-        // 获取结束索引（如果提供）
-        let end = if args_array.len() > 2 {
-            let end_value = context.resolve_value(&args_array[2]);
-            if let Ok(idx) = end_value.parse::<usize>() {
-                idx
-            } else {
+        // 解析start参数
+        let start_arg = &args_array[1];
+        let mut start = 0;
+        if let Some(start_str) = start_arg.as_str() {
+            if VariableReference::is_reference(start_str) {
+                if let Some(var_value) = context.get_value(start_str) {
+                    if let Some(num) = var_value.as_u64() {
+                        start = num as usize;
+                    }
+                }
+            } else if let Ok(num) = start_str.parse::<usize>() {
+                start = num;
+            }
+        } else if let Some(num) = start_arg.as_u64() {
+            start = num as usize;
+        } else if let Some(obj) = start_arg.as_object() {
+            // 检查是否是嵌套函数调用
+            if obj.len() == 1 {
+                if let Some((nested_type, nested_args)) = obj.iter().next() {
+                    if is_builtin_statement(nested_type) || nested_type.contains('.') {
+                        let nested_result = execute_statement(nested_type, nested_args, context)?;
+                        if let Some(num) = nested_result.as_u64() {
+                            start = num as usize;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 解析end参数
+        let mut end = array.len();
+        if args_array.len() > 2 {
+            let end_arg = &args_array[2];
+            if let Some(end_str) = end_arg.as_str() {
+                if VariableReference::is_reference(end_str) {
+                    if let Some(var_value) = context.get_value(end_str) {
+                        if let Some(num) = var_value.as_u64() {
+                            end = num as usize;
+                        }
+                    }
+                } else if let Ok(num) = end_str.parse::<usize>() {
+                    end = num;
+                }
+            } else if let Some(num) = end_arg.as_u64() {
+                end = num as usize;
+            } else if let Some(obj) = end_arg.as_object() {
+                // 检查是否是嵌套函数调用
+                if obj.len() == 1 {
+                    if let Some((nested_type, nested_args)) = obj.iter().next() {
+                        if is_builtin_statement(nested_type) || nested_type.contains('.') {
+                            let nested_result = execute_statement(nested_type, nested_args, context)?;
+                            if let Some(num) = nested_result.as_u64() {
+                                end = num as usize;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 边界检查
+        if start > array.len() {
+            start = array.len();
+        }
+        if end > array.len() {
+            end = array.len();
+        }
+        
+        // 切片操作
+        let sliced: Vec<Value> = array[start..end].to_vec();
+        return Ok(Value::Array(sliced));
+    } else if let Some(obj) = args.as_object() {
+        if let Some(array) = obj.get("array") {
+            let mut array_value = array.clone();
+            
+            // 处理变量引用
+            if let Some(array_str) = array.as_str() {
+                if VariableReference::is_reference(array_str) {
+                    if let Some(var_value) = context.get_value(array_str) {
+                        array_value = var_value.clone();
+                    }
+                }
+            }
+            
+            // 确保是数组类型
+            if !array_value.is_array() {
                 return Err(InterpreterError::RuntimeError(
-                    array::SLICE_THIRD_ARG_NOT_INDEX.to_string()
+                    array::SLICE_FIRST_ARG_NOT_ARRAY.to_string()
                 ));
             }
-        } else {
-            array.len()
-        };
-        
-        // 创建切片
-        let slice = if start <= array.len() {
-            let actual_end = end.min(array.len());
-            if start <= actual_end {
-                array[start..actual_end].to_vec()
-            } else {
-                Vec::new()
+            
+            let array_data = array_value.as_array().unwrap();
+            
+            // 解析start参数
+            let start_value = obj.get("start");
+            // 创建一个默认值，而不是使用引用临时值
+            let default_start = Value::Number(serde_json::Number::from(0));
+            let start_ref = start_value.unwrap_or(&default_start);
+            
+            let mut start = 0;
+            if let Some(start_str) = start_ref.as_str() {
+                if VariableReference::is_reference(start_str) {
+                    if let Some(var_value) = context.get_value(start_str) {
+                        if let Some(num) = var_value.as_u64() {
+                            start = num as usize;
+                        }
+                    }
+                } else if let Ok(num) = start_str.parse::<usize>() {
+                    start = num;
+                }
+            } else if let Some(num) = start_ref.as_u64() {
+                start = num as usize;
             }
-        } else {
-            Vec::new()
-        };
-        
-        // 存储结果
-        context.set_variable("result".to_string(), Value::Array(slice))?;
-        
-        Ok(())
-    } else {
-        Err(InterpreterError::RuntimeError(
-            statement::param_must_be_array("array.slice")
-        ))
+            
+            // 解析end参数
+            let mut end = array_data.len();
+            if let Some(end_value) = obj.get("end") {
+                if let Some(end_str) = end_value.as_str() {
+                    if VariableReference::is_reference(end_str) {
+                        if let Some(var_value) = context.get_value(end_str) {
+                            if let Some(num) = var_value.as_u64() {
+                                end = num as usize;
+                            }
+                        }
+                    } else if let Ok(num) = end_str.parse::<usize>() {
+                        end = num;
+                    }
+                } else if let Some(num) = end_value.as_u64() {
+                    end = num as usize;
+                }
+            }
+            
+            // 边界检查
+            if start > array_data.len() {
+                start = array_data.len();
+            }
+            if end > array_data.len() {
+                end = array_data.len();
+            }
+            
+            // 切片操作
+            let sliced: Vec<Value> = array_data[start..end].to_vec();
+            
+            // 处理输出变量
+            if let Some(output) = obj.get("output").and_then(|v| v.as_str()) {
+                context.set_variable(output.to_string(), Value::Array(sliced.clone()))?;
+            }
+            
+            return Ok(Value::Array(sliced));
+        }
     }
+    
+    Err(InterpreterError::RuntimeError(
+        statement::param_must_be_array("array.slice")
+    ))
 } 

@@ -5,9 +5,17 @@ use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement;
 use super::execute_statement;
 use super::super::variable_reference::{VariableReference, ReferenceType};
+use crate::is_allow_call;
 
 // execute_call_statement - 执行函数调用
-pub fn execute_call_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_call_statement(args: &Value, context: &mut Context) -> Result<Value> {
+    // 检查是否允许使用call语句
+    if !is_allow_call() {
+        return Err(InterpreterError::FunctionError(
+            statement::CALL_DEPRECATED.to_string()
+        ));
+    }
+
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::FunctionError(
@@ -33,7 +41,35 @@ pub fn execute_call_statement(args: &Value, context: &mut Context) -> Result<()>
             if let Some(program_obj) = context.program.get("program") {
                 if let Some(func) = program_obj.get(func_name) {
                     let func = func.clone();
-                    let params = args_array.get(1).cloned();
+                    
+                    // 处理函数参数
+                    // 1. 如果第二个参数是对象，直接传递
+                    // 2. 如果参数是数组形式，需要创建一个对象，按顺序映射到函数定义的参数名
+                    let params = if let Some(obj) = args_array.get(1).and_then(|v| v.as_object()) {
+                        // 直接传递对象参数
+                        args_array.get(1).cloned()
+                    } else {
+                        // 获取函数参数定义
+                        if let Some(params_def) = func.get("params").and_then(|p| p.as_object()) {
+                            // 创建参数映射
+                            let mut params_map = serde_json::Map::new();
+                            // 获取param_names列表以确保顺序一致
+                            let param_names: Vec<&String> = params_def.keys().collect();
+                            
+                            // 映射参数值到对应参数名
+                            for (i, param_name) in param_names.iter().enumerate() {
+                                // 跳过第一个参数(函数名)，所以从args_array的索引1开始
+                                if let Some(arg_value) = args_array.get(i + 1) {
+                                    params_map.insert(param_name.to_string(), arg_value.clone());
+                                }
+                            }
+                            
+                            Some(Value::Object(params_map))
+                        } else {
+                            None
+                        }
+                    };
+                    
                     return execute_function(&func, context, params.as_ref());
                 }
             }
@@ -45,7 +81,7 @@ pub fn execute_call_statement(args: &Value, context: &mut Context) -> Result<()>
 }
 
 // execute_function - 执行函数体
-pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Value>) -> Result<()> {
+pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Value>) -> Result<Value> {
     // 创建函数的局部变量作用域
     // 支持嵌套函数调用和递归函数
     let mut function_scope = HashMap::new();
@@ -147,12 +183,9 @@ pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Val
         }
     }
     
-    // 3. 设置函数结果
-    // 统一使用"result"变量存储函数返回值
-    new_context_variables.insert("result".to_string(), function_result);
-    
     // 更新上下文
     context.variables = new_context_variables;
 
-    Ok(())
+    // 返回函数结果
+    Ok(function_result)
 } 

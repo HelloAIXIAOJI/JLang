@@ -106,23 +106,85 @@ impl Context {
             Value::String(text) => {
                 if VariableReference::is_reference(text) {
                     let var_ref = VariableReference::parse(text);
-                    match var_ref.resolve_value(&self.variables, &self.constants) {
-                        Value::String(s) => s.to_string(),
-                        Value::Number(n) => n.to_string(),
-                        Value::Bool(b) => b.to_string(),
-                        Value::Null => "null".to_string(),
-                        Value::Array(_) => "<array>".to_string(),
-                        Value::Object(_) => "<object>".to_string(),
+                    if let Some(val) = var_ref.get_value(&self.variables, &self.constants) {
+                        match val {
+                            Value::Object(_) | Value::Array(_) => {
+                                if crate::is_show_values() {
+                                    serde_json::to_string_pretty(&val).unwrap_or_else(|_| format!("{:?}", val))
+                                } else {
+                                    if val.is_object() {
+                                        "<object>".to_string()
+                                    } else {
+                                        "<array>".to_string()
+                                    }
+                                }
+                            },
+                            _ => val.to_string()
+                        }
+                    } else {
+                        text.to_string()
                     }
                 } else {
                     text.to_string()
                 }
             },
-            Value::Number(n) => n.to_string(),
-            Value::Bool(b) => b.to_string(),
-            Value::Null => "null".to_string(),
-            Value::Array(_) => "<array>".to_string(),
-            Value::Object(_) => "<object>".to_string(),
+            Value::Array(_) => {
+                if crate::is_show_values() {
+                    // 处理数组中可能包含的每个元素
+                    let mut resolved_array = Vec::new();
+                    if let Some(arr) = value.as_array() {
+                        for item in arr {
+                            if let Some(s) = item.as_str() {
+                                if VariableReference::is_reference(s) {
+                                    if let Some(resolved) = self.get_value(s) {
+                                        resolved_array.push(resolved.clone());
+                                    } else {
+                                        resolved_array.push(item.clone());
+                                    }
+                                } else {
+                                    resolved_array.push(item.clone());
+                                }
+                            } else {
+                                resolved_array.push(item.clone());
+                            }
+                        }
+                        serde_json::to_string_pretty(&Value::Array(resolved_array)).unwrap_or_else(|_| "<array>".to_string())
+                    } else {
+                        serde_json::to_string_pretty(&value).unwrap_or_else(|_| "<array>".to_string())
+                    }
+                } else {
+                    "<array>".to_string()
+                }
+            },
+            Value::Object(_) => {
+                if crate::is_show_values() {
+                    // 处理对象中可能包含的变量引用
+                    let mut resolved_obj = serde_json::Map::new();
+                    if let Some(obj) = value.as_object() {
+                        for (key, val) in obj {
+                            if let Some(s) = val.as_str() {
+                                if VariableReference::is_reference(s) {
+                                    if let Some(resolved) = self.get_value(s) {
+                                        resolved_obj.insert(key.clone(), resolved.clone());
+                                    } else {
+                                        resolved_obj.insert(key.clone(), val.clone());
+                                    }
+                                } else {
+                                    resolved_obj.insert(key.clone(), val.clone());
+                                }
+                            } else {
+                                resolved_obj.insert(key.clone(), val.clone());
+                            }
+                        }
+                        serde_json::to_string_pretty(&Value::Object(resolved_obj)).unwrap_or_else(|_| "<object>".to_string())
+                    } else {
+                        serde_json::to_string_pretty(&value).unwrap_or_else(|_| "<object>".to_string())
+                    }
+                } else {
+                    "<object>".to_string()
+                }
+            },
+            _ => value.to_string()
         }
     }
 
@@ -137,8 +199,17 @@ impl Context {
                         Value::Number(n) => n.to_string(),
                         Value::Bool(b) => b.to_string(),
                         Value::Null => "null".to_string(),
-                        Value::Array(_) => "<array>".to_string(),
-                        Value::Object(_) => "<object>".to_string(),
+                        Value::Array(_) | Value::Object(_) => {
+                            if crate::is_show_values() {
+                                serde_json::to_string_pretty(&resolved).unwrap_or_else(|_| resolved.to_string())
+                            } else {
+                                if resolved.is_array() {
+                                    "<array>".to_string()
+                                } else {
+                                    "<object>".to_string()
+                                }
+                            }
+                        }
                     })
                 } else {
                     Ok(text.to_string())
@@ -147,8 +218,54 @@ impl Context {
             Value::Number(n) => Ok(n.to_string()),
             Value::Bool(b) => Ok(b.to_string()),
             Value::Null => Ok("null".to_string()),
-            Value::Array(_) => Ok("<array>".to_string()),
-            Value::Object(_) => Ok("<object>".to_string()),
+            Value::Array(_) | Value::Object(_) => {
+                if crate::is_show_values() {
+                    // 处理复杂类型中的变量引用
+                    if let Some(arr) = value.as_array() {
+                        let mut resolved_arr = Vec::new();
+                        for item in arr {
+                            if let Some(s) = item.as_str() {
+                                if VariableReference::is_reference(s) {
+                                    if let Some(resolved) = self.get_value(s) {
+                                        resolved_arr.push(resolved.clone());
+                                    } else {
+                                        resolved_arr.push(item.clone());
+                                    }
+                                } else {
+                                    resolved_arr.push(item.clone());
+                                }
+                            } else {
+                                resolved_arr.push(item.clone());
+                            }
+                        }
+                        Ok(serde_json::to_string_pretty(&Value::Array(resolved_arr)).unwrap_or_else(|_| "<array>".to_string()))
+                    } else if let Some(obj) = value.as_object() {
+                        let mut resolved_obj = serde_json::Map::new();
+                        for (key, val) in obj {
+                            if let Some(s) = val.as_str() {
+                                if VariableReference::is_reference(s) {
+                                    if let Some(resolved) = self.get_value(s) {
+                                        resolved_obj.insert(key.clone(), resolved.clone());
+                                    } else {
+                                        resolved_obj.insert(key.clone(), val.clone());
+                                    }
+                                } else {
+                                    resolved_obj.insert(key.clone(), val.clone());
+                                }
+                            } else {
+                                resolved_obj.insert(key.clone(), val.clone());
+                            }
+                        }
+                        Ok(serde_json::to_string_pretty(&Value::Object(resolved_obj)).unwrap_or_else(|_| "<object>".to_string()))
+                    } else {
+                        Ok(serde_json::to_string_pretty(&value).unwrap_or_else(|_| {
+                            if value.is_array() { "<array>".to_string() } else { "<object>".to_string() }
+                        }))
+                    }
+                } else {
+                    Ok(if value.is_array() { "<array>".to_string() } else { "<object>".to_string() })
+                }
+            }
         }
     }
 

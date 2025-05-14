@@ -10,7 +10,7 @@ New-Item -ItemType Directory -Path $backupDir -Force
 
 $platforms = @(
     @{target="x86_64-pc-windows-msvc"; name="win64"; ext="exe"},
-    @{target="i686-pc-windows-msvc"; name="win32"; ext="exe"},
+    @{target="i686-pc-windows-msvc"; name="win32"; ext="exe"}
 )
 
 foreach ($platform in $platforms) {

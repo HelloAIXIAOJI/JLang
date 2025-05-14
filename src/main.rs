@@ -63,6 +63,8 @@ static mut DEBUG_MODE: bool = false;
 static mut IGNORE_NON_CRITICAL_ERRORS: bool = false;
 static mut CHECK_ONLY: bool = false;
 static mut CHECK_ALL: bool = false;
+static mut SHOW_VALUES: bool = false;
+static mut ALLOW_CALL: bool = false;
 
 // 检查是否处于调试模式
 pub fn is_debug_mode() -> bool {
@@ -82,6 +84,16 @@ pub fn is_check_only() -> bool {
 // 检查是否进行全面错误检查
 pub fn is_check_all() -> bool {
     unsafe { CHECK_ALL }
+}
+
+// 检查是否显示详细JSON值
+pub fn is_show_values() -> bool {
+    unsafe { SHOW_VALUES }
+}
+
+// 检查是否允许使用call语句
+pub fn is_allow_call() -> bool {
+    unsafe { ALLOW_CALL }
 }
 
 fn main() {
@@ -120,6 +132,16 @@ fn main() {
                     CHECK_ONLY = true; // 全面检查模式包含仅检查模式
                 }
                 println!("全面检查模式已启用 - 检查所有类型错误并统一报告，不执行代码");
+            },
+            "--show-values" => {
+                // 启用详细显示JSON值
+                unsafe { SHOW_VALUES = true; }
+                println!("详细值显示已启用 - 将显示完整的JSON数据结构");
+            },
+            "--allow-call" => {
+                // 临时启用call语句
+                unsafe { ALLOW_CALL = true; }
+                println!("警告: call语句支持已临时启用 - 此功能已被弃用并将在未来版本中移除");
             },
             "--help" => {
                 // 显示帮助信息
@@ -264,6 +286,8 @@ fn print_help() {
     println!("  --ignore-non-critical-errors    容错模式，只报告非关键错误而不终止程序");
     println!("  --check                         仅检查错误，不执行程序代码");
     println!("  --check-all                     全面检查模式，检查并统一报告所有错误，不执行程序代码");
+    println!("  --show-values                   启用详细显示JSON值");
+    println!("  --allow-call                    临时启用已弃用的call语句支持");
     println!("  --help                          显示此帮助信息");
     println!("  --about                         显示关于信息");
     println!("  --creator                       显示创建者信息");

@@ -9,13 +9,13 @@
             "body": [
                 {"var": {"message": "自豪的使用JiLang开发!"}},
                 {"var": {"name": "小kang"}},
-                {"echo": ["当前版本：", "@const.VERSION", "\\n"]},
-                {"echo": ["作者：", "@const.AUTHOR", "\\n"]},
+                {"echo": ["当前版本：", "@const.VERSION", "\n"]},
+                {"echo": ["作者：", "@const.AUTHOR", "\n"]},
                 {"concat": {
                     "target": "fullMessage",
                     "parts": ["@const.GREETING", ", ", "@var.name", "! ", "@var.message"]
                 }},
-                {"echo": ["完整消息：", "@var.fullMessage", "\\n"]},
+                {"echo": ["完整消息：", "@var.fullMessage", "\n"]},
                 {"if": {
                     "condition": {
                         "op": "eq",
@@ -23,21 +23,23 @@
                         "right": "小明"
                     },
                     "then": [
-                        {"echo": ["欢迎回来，小明！\\n"]}
+                        {"echo": ["欢迎回来，小明！\n"]}
                     ],
                     "else": [
-                        {"echo": ["你好，陌生人！\\n"]}
+                        {"echo": ["你好，陌生人！\n"]}
                     ]
                 }},
-                {"itiswow": ["@var.fullMessage"]}
+                {"itiswow": ["￥name", "@var.fullMessage"]}
             ]
         },
         "itiswow": {
             "body": [
-                {"echo": ["收到的消息是：\\n"]},
-                {"echo": ["@params.text", "\\n"]}
+                {"echo": ["收到的消息是：\n"]},
+                {"echo": ["收到的消息是：", "@params.text", "\n"]},
+                {"echo": ["收到的名字是：", "@params.name", "\n"]}
             ],
             "params": {
+                "name": "string",
                 "text": "string"
             }
         }

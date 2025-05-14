@@ -8,7 +8,7 @@ use super::execute_statement;
 use super::super::variable_reference::{VariableReference, ReferenceType};
 
 // execute_if_statement - 执行if条件语句
-pub fn execute_if_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_if_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         if let (Some(condition), Some(then_block)) = (obj.get("condition"), obj.get("then")) {
             let condition_result = evaluate_condition(condition, context);
@@ -18,51 +18,65 @@ pub fn execute_if_statement(args: &Value, context: &mut Context) -> Result<()> {
                 obj.get("else").unwrap_or(then_block)
             };
 
+            // 记录条件块的最后一个语句结果
+            let mut last_result = Value::Null;
+
             if let Some(statements) = block.as_array() {
                 for stmt in statements {
                     if let Some(obj) = stmt.as_object() {
                         if let Some((stmt_type, args)) = obj.iter().next() {
-                            execute_statement(stmt_type, args, context)?;
+                            last_result = execute_statement(stmt_type, args, context)?;
                         }
                     }
                 }
             }
+            
+            // 返回条件块最后一个语句的结果
+            return Ok(last_result);
         }
     }
-    Ok(())
+    Ok(Value::Null) // 如果结构不正确，返回Null
 }
 
 // execute_while_statement - 执行while循环语句
-pub fn execute_while_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_while_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         if let (Some(condition), Some(body)) = (obj.get("condition"), obj.get("body")) {
+            // 记录循环的最后一个语句结果
+            let mut last_result = Value::Null;
+            
             while evaluate_condition(condition, context) {
                 if let Some(statements) = body.as_array() {
                     for stmt in statements {
                         if let Some(obj) = stmt.as_object() {
                             if let Some((stmt_type, args)) = obj.iter().next() {
-                                execute_statement(stmt_type, args, context)?;
+                                last_result = execute_statement(stmt_type, args, context)?;
                             }
                         }
                     }
                 }
             }
-            Ok(())
+            
+            // 返回循环最后一次执行的最后一个语句的结果
+            return Ok(last_result);
         } else {
-            Err(InterpreterError::RuntimeError(
+            return Err(InterpreterError::RuntimeError(
                 control_flow::WHILE_MISSING_FIELDS.to_string()
-            ))
+            ));
         }
     } else {
-        Err(InterpreterError::RuntimeError(
+        return Err(InterpreterError::RuntimeError(
             control_flow::WHILE_ARGS_NOT_OBJ.to_string()
-        ))
+        ));
     }
 }
 
 // execute_for_statement - 执行for循环语句，支持多种循环方式
-pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
+        // 记录循环的最后一个语句结果
+        let mut last_result = Value::Null;
+        
         // 支持数组遍历语法
         if let Some(array_expr) = obj.get("in") {
             // 数组遍历语法: {"for": {"var": "item", "in": "@var.array", "body": [...]}}
@@ -106,7 +120,7 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                         for stmt in statements {
                             if let Some(obj) = stmt.as_object() {
                                 if let Some((stmt_type, args)) = obj.iter().next() {
-                                    execute_statement(stmt_type, args, context)?;
+                                    last_result = execute_statement(stmt_type, args, context)?;
                                 }
                             }
                         }
@@ -117,7 +131,7 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                     }
                 }
                 
-                return Ok(());
+                return Ok(last_result);
             } else {
                 return Err(InterpreterError::RuntimeError(
                     control_flow::FOR_MISSING_FIELDS.to_string()
@@ -146,7 +160,7 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                             for stmt in statements {
                                 if let Some(obj) = stmt.as_object() {
                                     if let Some((stmt_type, args)) = obj.iter().next() {
-                                        execute_statement(stmt_type, args, context)?;
+                                        last_result = execute_statement(stmt_type, args, context)?;
                                     }
                                 }
                             }
@@ -154,16 +168,16 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                         
                         current += step;
                     }
-                    Ok(())
+                    return Ok(last_result);
                 } else {
-                    Err(InterpreterError::RuntimeError(
+                    return Err(InterpreterError::RuntimeError(
                         control_flow::FOR_RANGE_INVALID.to_string()
-                    ))
+                    ));
                 }
             } else {
-                Err(InterpreterError::RuntimeError(
+                return Err(InterpreterError::RuntimeError(
                     control_flow::FOR_MISSING_FIELDS.to_string()
-                ))
+                ));
             }
         } else {
             // 原有的for循环语法
@@ -186,7 +200,7 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                         for stmt in statements {
                             if let Some(obj) = stmt.as_object() {
                                 if let Some((stmt_type, args)) = obj.iter().next() {
-                                    execute_statement(stmt_type, args, context)?;
+                                    last_result = execute_statement(stmt_type, args, context)?;
                                 }
                             }
                         }
@@ -194,22 +208,22 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                     
                     current += step;
                 }
-                Ok(())
+                return Ok(last_result);
             } else {
-                Err(InterpreterError::RuntimeError(
+                return Err(InterpreterError::RuntimeError(
                     control_flow::FOR_MISSING_FIELDS.to_string()
-                ))
+                ));
             }
         }
     } else {
-        Err(InterpreterError::RuntimeError(
+        return Err(InterpreterError::RuntimeError(
             control_flow::FOR_ARGS_NOT_OBJ.to_string()
-        ))
+        ));
     }
 }
 
 // execute_switch_statement - 执行switch分支语句
-pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         if let (Some(expr), Some(cases)) = (obj.get("expr"), obj.get("cases")) {
             let expr_value = context.resolve_value(expr);
@@ -217,6 +231,7 @@ pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<(
             if let Some(cases_array) = cases.as_array() {
                 let mut default_case = None;
                 let mut match_found = false;
+                let mut last_result = Value::Null;
                 
                 // 遍历所有case
                 for case in cases_array {
@@ -240,7 +255,7 @@ pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<(
                                     for stmt in statements {
                                         if let Some(obj) = stmt.as_object() {
                                             if let Some((stmt_type, args)) = obj.iter().next() {
-                                                execute_statement(stmt_type, args, context)?;
+                                                last_result = execute_statement(stmt_type, args, context)?;
                                             }
                                         }
                                     }
@@ -253,7 +268,7 @@ pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<(
                                 // 检查是否需要break（默认行为是break）
                                 if !case_obj.contains_key("fallthrough") || 
                                    !case_obj.get("fallthrough").unwrap().as_bool().unwrap_or(false) {
-                                    break;
+                                    return Ok(last_result);
                                 }
                             }
                         } else {
@@ -274,7 +289,7 @@ pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<(
                         for stmt in statements {
                             if let Some(obj) = stmt.as_object() {
                                 if let Some((stmt_type, args)) = obj.iter().next() {
-                                    execute_statement(stmt_type, args, context)?;
+                                    last_result = execute_statement(stmt_type, args, context)?;
                                 }
                             }
                         }
@@ -285,26 +300,26 @@ pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<(
                     }
                 }
                 
-                Ok(())
+                return Ok(last_result);
             } else {
-                Err(InterpreterError::RuntimeError(
+                return Err(InterpreterError::RuntimeError(
                     switch::CASES_NOT_ARRAY.to_string()
-                ))
+                ));
             }
         } else {
-            Err(InterpreterError::RuntimeError(
+            return Err(InterpreterError::RuntimeError(
                 switch::MISSING_EXPR_OR_CASES.to_string()
-            ))
+            ));
         }
     } else {
-        Err(InterpreterError::RuntimeError(
+        return Err(InterpreterError::RuntimeError(
             switch::ARGS_NOT_OBJ.to_string()
-        ))
+        ));
     }
 }
 
 // execute_try_statement - 执行try-catch错误处理语句
-pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         // 检查必要字段
         let try_body = obj.get("try").ok_or_else(|| {
@@ -341,13 +356,16 @@ pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<()> 
         // 执行try块
         let mut error_caught = false;
         let mut error_message = String::new();
+        let mut last_result = Value::Null;
         
         // 尝试执行try块中的语句
         for stmt in try_statements {
             if let Some(obj) = stmt.as_object() {
                 if let Some((stmt_type, args)) = obj.iter().next() {
                     match execute_statement(stmt_type, args, context) {
-                        Ok(_) => {},
+                        Ok(result) => {
+                            last_result = result;
+                        },
                         Err(e) => {
                             // 捕获错误
                             error_caught = true;
@@ -370,7 +388,7 @@ pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<()> 
             for stmt in catch_statements {
                 if let Some(obj) = stmt.as_object() {
                     if let Some((stmt_type, args)) = obj.iter().next() {
-                        execute_statement(stmt_type, args, context)?;
+                        last_result = execute_statement(stmt_type, args, context)?;
                     }
                 }
             }
@@ -383,7 +401,7 @@ pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<()> 
                 for stmt in finally_statements {
                     if let Some(obj) = stmt.as_object() {
                         if let Some((stmt_type, args)) = obj.iter().next() {
-                            execute_statement(stmt_type, args, context)?;
+                            last_result = execute_statement(stmt_type, args, context)?;
                         }
                     }
                 }
@@ -394,10 +412,10 @@ pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<()> 
             }
         }
         
-        Ok(())
+        return Ok(last_result);
     } else {
-        Err(InterpreterError::RuntimeError(
+        return Err(InterpreterError::RuntimeError(
             try_catch::ARGS_NOT_OBJ.to_string()
-        ))
+        ));
     }
 } 
