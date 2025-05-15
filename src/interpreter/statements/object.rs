@@ -5,7 +5,7 @@ use super::super::error::error_messages::statement;
 use super::super::variable_reference::{VariableReference, ReferenceType};
 
 // execute_object_create - 创建新对象
-pub fn execute_object_create(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_object_create(args: &Value, context: &mut Context) -> Result<()> {
     let result = if let Some(obj) = args.as_object() {
         // 如果提供了初始属性，则使用它们创建对象
         // 处理每个属性，解析变量引用
@@ -32,11 +32,12 @@ pub fn execute_object_create(args: &Value, context: &mut Context) -> Result<Valu
         Value::Object(serde_json::Map::new())
     };
     
-    Ok(result)
+    context.set_variable("result".to_string(), result)?;
+    Ok(())
 }
 
 // execute_object_get - 获取对象属性
-pub fn execute_object_get(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_object_get(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -82,8 +83,10 @@ pub fn execute_object_get(args: &Value, context: &mut Context) -> Result<Value> 
             Value::Null
         };
         
-        // 返回结果
-        Ok(value)
+        // 存储结果
+        context.set_variable("result".to_string(), value)?;
+        
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'object.get' 语句的参数必须是一个数组".to_string()
@@ -92,7 +95,7 @@ pub fn execute_object_get(args: &Value, context: &mut Context) -> Result<Value> 
 }
 
 // execute_object_set - 设置对象属性
-pub fn execute_object_set(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_object_set(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 3 {
             return Err(InterpreterError::RuntimeError(
@@ -164,8 +167,10 @@ pub fn execute_object_set(args: &Value, context: &mut Context) -> Result<Value> 
         // 更新对象变量
         context.set_variable(obj_var_name.to_string(), Value::Object(obj.clone()))?;
         
-        // 返回修改后的对象
-        Ok(Value::Object(obj))
+        // 将修改后的对象也存储在result变量中
+        context.set_variable("result".to_string(), Value::Object(obj))?;
+        
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'object.set' 语句的参数必须是一个数组".to_string()
@@ -174,7 +179,7 @@ pub fn execute_object_set(args: &Value, context: &mut Context) -> Result<Value> 
 }
 
 // execute_object_has - 检查对象是否有属性
-pub fn execute_object_has(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_object_has(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -216,8 +221,10 @@ pub fn execute_object_has(args: &Value, context: &mut Context) -> Result<Value> 
         // 检查属性是否存在
         let has_property = obj.contains_key(&key);
         
-        // 返回结果
-        Ok(Value::Bool(has_property))
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Bool(has_property))?;
+        
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'object.has' 语句的参数必须是一个数组".to_string()
@@ -226,7 +233,7 @@ pub fn execute_object_has(args: &Value, context: &mut Context) -> Result<Value> 
 }
 
 // execute_object_keys - 获取对象所有键
-pub fn execute_object_keys(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_object_keys(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::RuntimeError(
@@ -267,8 +274,10 @@ pub fn execute_object_keys(args: &Value, context: &mut Context) -> Result<Value>
             .map(|k| Value::String(k.clone()))
             .collect();
         
-        // 返回结果
-        Ok(Value::Array(keys))
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Array(keys))?;
+        
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'object.keys' 语句的参数必须是一个数组".to_string()
@@ -277,7 +286,7 @@ pub fn execute_object_keys(args: &Value, context: &mut Context) -> Result<Value>
 }
 
 // execute_object_values - 获取对象所有值
-pub fn execute_object_values(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_object_values(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::RuntimeError(
@@ -316,8 +325,10 @@ pub fn execute_object_values(args: &Value, context: &mut Context) -> Result<Valu
         // 获取所有值
         let values: Vec<Value> = obj.values().cloned().collect();
         
-        // 返回结果
-        Ok(Value::Array(values))
+        // 存储结果
+        context.set_variable("result".to_string(), Value::Array(values))?;
+        
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'object.values' 语句的参数必须是一个数组".to_string()
@@ -326,7 +337,7 @@ pub fn execute_object_values(args: &Value, context: &mut Context) -> Result<Valu
 }
 
 // execute_object_delete - 删除对象属性
-pub fn execute_object_delete(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_object_delete(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -383,8 +394,10 @@ pub fn execute_object_delete(args: &Value, context: &mut Context) -> Result<Valu
         // 更新对象变量
         context.set_variable(obj_var_name.to_string(), Value::Object(obj.clone()))?;
         
-        // 返回结果
-        Ok(Value::Bool(had_property))
+        // 将结果存储在result变量中
+        context.set_variable("result".to_string(), Value::Bool(had_property))?;
+        
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             "杂鱼~'object.delete' 语句的参数必须是一个数组".to_string()

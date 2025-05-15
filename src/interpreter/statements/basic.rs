@@ -6,7 +6,7 @@ use super::super::variable_reference::{VariableReference, ReferenceType};
 use crate::is_debug_mode;
 
 // 执行var语句 - 变量定义
-pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(vars_obj) = args.as_object() {
         for (var_name, value) in vars_obj {
             let resolved_value = if let Some(text) = value.as_str() {
@@ -22,7 +22,7 @@ pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<Valu
             };
             context.set_variable(var_name.clone(), resolved_value)?;
         }
-        Ok(Value::Null) // 变量定义没有实际返回值，返回Null
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_obj("var")
@@ -31,69 +31,14 @@ pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<Valu
 }
 
 // 执行echo语句 - 输出内容
-pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(parts) = args.as_array() {
         for part in parts {
-            // 预处理步骤：首先尝试执行part中的函数调用
-            let processed_part = process_expression(part, context)?;
-            
-            // 根据是否启用详细显示决定输出格式
-            if crate::is_show_values() {
-                match &processed_part {
-                    Value::String(s) if VariableReference::is_reference(s) => {
-                        // 如果是变量引用，先获取值，再递归处理可能的表达式
-                        if let Some(val) = context.get_value(s) {
-                            // 递归处理变量值中可能包含的表达式
-                            let processed_val = process_expression(&val, context)?;
-                            match &processed_val {
-                                Value::Object(_) | Value::Array(_) => {
-                                    // 对对象和数组使用格式化JSON
-                                    if let Ok(json) = serde_json::to_string_pretty(&processed_val) {
-                                        print!("{}", json);
-                                    } else {
-                                        print!("{}", processed_val);
-                                    }
-                                },
-                                // 简单值直接打印，不用引号
-                                Value::String(str_val) => print!("{}", str_val),
-                                Value::Number(num) => print!("{}", num),
-                                Value::Bool(b) => print!("{}", b),
-                                Value::Null => print!("null"),
-                                _ => print!("{}", processed_val),
-                            }
-                        } else {
-                            print!("{}", s);
-                        }
-                    },
-                    Value::Object(_) | Value::Array(_) => {
-                        // 对对象和数组使用格式化JSON输出，不包含额外引号
-                        if let Ok(json) = serde_json::to_string_pretty(&processed_part) {
-                            print!("{}", json);
-                        } else {
-                            print!("{:?}", processed_part);
-                        }
-                    },
-                    // 简单值直接输出，不用引号
-                    Value::String(s) => print!("{}", s),
-                    Value::Number(n) => print!("{}", n),
-                    Value::Bool(b) => print!("{}", b),
-                    Value::Null => print!("null"),
-                    _ => print!("{}", processed_part),
-                }
-            } else {
-                // 普通模式下提取纯文本值
-                match &processed_part {
-                    Value::String(s) => print!("{}", s),
-                    Value::Number(n) => print!("{}", n),
-                    Value::Bool(b) => print!("{}", b),
-                    Value::Null => print!("null"),
-                    Value::Object(_) => print!("<object>"),
-                    Value::Array(_) => print!("<array>"),
-                    _ => print!("{}", processed_part),
-                }
-            }
+            // 使用可能抛出错误的版本处理变量引用
+            let text = context.resolve_value_with_error(part)?;
+            print!("{}", text);
         }
-        Ok(Value::Null) // echo语句没有实际返回值，返回Null
+        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("echo")
@@ -101,97 +46,8 @@ pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<Val
     }
 }
 
-// 递归处理表达式，执行函数调用并返回结果
-fn process_expression(expr: &Value, context: &mut Context) -> Result<Value> {
-    match expr {
-        Value::Object(obj) => {
-            // 检查是否是函数调用（单键对象）
-            if obj.len() == 1 {
-                let (func_name, func_args) = obj.iter().next().unwrap();
-                
-                if super::is_builtin_statement(func_name) || func_name.contains('.') {
-                    // 处理函数参数
-                    let processed_args = match func_args {
-                        Value::Array(arr) => {
-                            let mut new_arr = Vec::new();
-                            for item in arr {
-                                new_arr.push(process_expression(item, context)?);
-                            }
-                            Value::Array(new_arr)
-                        },
-                        Value::Object(obj_args) => {
-                            let mut new_map = serde_json::Map::new();
-                            for (key, val) in obj_args {
-                                new_map.insert(key.clone(), process_expression(val, context)?);
-                            }
-                            Value::Object(new_map)
-                        },
-                        _ => func_args.clone()
-                    };
-                    
-                    // 执行函数调用
-                    return super::execute_statement(func_name, &processed_args, context);
-                }
-            }
-            
-            // 不是函数调用，处理每个字段
-            let mut new_obj = serde_json::Map::new();
-            for (key, val) in obj {
-                new_obj.insert(key.clone(), process_expression(val, context)?);
-            }
-            Ok(Value::Object(new_obj))
-        },
-        Value::Array(arr) => {
-            // 处理数组中的每个元素
-            let mut new_arr = Vec::new();
-            for item in arr {
-                new_arr.push(process_expression(item, context)?);
-            }
-            Ok(Value::Array(new_arr))
-        },
-        Value::String(s) => {
-            // 处理变量引用
-            if VariableReference::is_reference(s) {
-                if let Some(val) = context.get_value(s) {
-                    // 如果变量引用指向的是一个对象或数组，需要进一步处理其中的表达式
-                    match &val {
-                        Value::Object(obj) => {
-                            // 检查是否是函数表达式对象
-                            if obj.len() == 1 {
-                                let (func_name, func_args) = obj.iter().next().unwrap();
-                                
-                                if super::is_builtin_statement(func_name) || func_name.contains('.') {
-                                    // 处理并执行嵌套的函数调用
-                                    return process_expression(&val, context);
-                                }
-                            }
-                            // 处理一般对象
-                            let mut new_obj = serde_json::Map::new();
-                            for (key, val) in obj {
-                                new_obj.insert(key.clone(), process_expression(val, context)?);
-                            }
-                            return Ok(Value::Object(new_obj));
-                        },
-                        Value::Array(arr) => {
-                            // 处理数组中可能包含的表达式
-                            let mut new_arr = Vec::new();
-                            for item in arr {
-                                new_arr.push(process_expression(item, context)?);
-                            }
-                            return Ok(Value::Array(new_arr));
-                        },
-                        _ => return Ok(val.clone())
-                    }
-                }
-            }
-            Ok(expr.clone())
-        },
-        _ => Ok(expr.clone())
-    }
-}
-
 // 执行concat语句 - 字符串拼接
-pub fn execute_concat_statement(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_concat_statement(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(obj) = args.as_object() {
         if let (Some(target), Some(parts)) = (obj.get("target"), obj.get("parts")) {
             if let Some(parts_array) = parts.as_array() {
@@ -199,21 +55,14 @@ pub fn execute_concat_statement(args: &Value, context: &mut Context) -> Result<V
                 for part in parts_array {
                     result.push_str(&context.resolve_value(part));
                 }
-                
-                let result_value = Value::String(result.clone());
-                
-                // 设置目标变量
                 context.set_variable(
                     target.as_str().unwrap_or("result").to_string(),
-                    result_value.clone()
+                    Value::String(result)
                 )?;
-                
-                // 返回拼接结果
-                return Ok(result_value);
             }
         }
     }
-    Ok(Value::Null) // 如果参数格式不正确，返回Null
+    Ok(())
 }
 
 // 评估条件表达式
@@ -385,7 +234,7 @@ pub fn evaluate_condition(condition: &Value, context: &Context) -> bool {
 }
 
 // 执行注释语句 - 不做任何操作，仅在调试模式下显示注释内容
-pub fn execute_comment_statement(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_comment_statement(args: &Value, context: &mut Context) -> Result<()> {
     if is_debug_mode() {
         println!("执行注释: {:?}", args);
         
@@ -400,5 +249,5 @@ pub fn execute_comment_statement(args: &Value, context: &mut Context) -> Result<
             println!();
         }
     }
-    Ok(Value::Null) // 注释没有返回值，返回Null
+    Ok(())
 } 

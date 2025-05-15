@@ -5,7 +5,7 @@ use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement::exec;
 
 // execute_exec_statement - 执行系统命令
-pub fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<()> {
     if let Some(obj) = args.as_object() {
         // 获取命令
         let cmd = if let Some(cmd) = obj.get("cmd") {
@@ -54,13 +54,10 @@ pub fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<Val
                 result_obj.insert("stderr".to_string(), Value::String(stderr));
                 result_obj.insert("status".to_string(), Value::Number(serde_json::Number::from(status)));
                 
-                // 如果指定了输出变量名且不是默认的"result"
-                if output_var != "result" {
-                    context.set_variable(output_var.to_string(), Value::Object(result_obj.clone()))?;
-                }
+                // 保存结果
+                context.set_variable(output_var.to_string(), Value::Object(result_obj))?;
                 
-                // 返回结果对象
-                Ok(Value::Object(result_obj))
+                Ok(())
             },
             Err(e) => {
                 Err(InterpreterError::RuntimeError(

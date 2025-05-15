@@ -29,18 +29,18 @@
                         {"echo": ["你好，陌生人！\n"]}
                     ]
                 }},
-                {"itiswow": ["￥name", "@var.fullMessage"]}
+                {"itiswow": ["@var.fullMessage", "小明"]}
             ]
         },
         "itiswow": {
             "body": [
                 {"echo": ["收到的消息是：\n"]},
-                {"echo": ["收到的消息是：", "@params.text", "\n"]},
-                {"echo": ["收到的名字是：", "@params.name", "\n"]}
+                {"echo": ["@params.text", "\n"]},
+                {"echo": ["@params.name", "\n"]}
             ],
             "params": {
-                "name": "string",
-                "text": "string"
+                "text": "string",
+                "name": "string"
             }
         }
     }

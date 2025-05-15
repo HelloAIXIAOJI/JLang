@@ -11,7 +11,7 @@ use serde_json::Value;
 use super::context::Context;
 use super::error::{InterpreterError, Result};
 use super::error::error_messages::statement;
-use super::variable_reference::VariableReference;
+use super::variable_reference::{VariableReference, ReferenceType};
 use crate::modules::jl_module;
 use crate::is_debug_mode;
 
@@ -25,12 +25,12 @@ pub use regex::*;
 pub use exec::*;
 
 // 这是主要的语句执行函数，调度到各个具体的语句处理器
-pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -> Result<Value> {
+pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -> Result<()> {
     if is_debug_mode() {
         println!("执行语句: {}", stmt_type);
     }
     
-    let result = match stmt_type {
+    match stmt_type {
         "comment" => execute_comment_statement(args, context),
         "var" => execute_var_statement(args, context),
         "echo" => execute_echo_statement(args, context),
@@ -67,90 +67,10 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                 if parts.len() == 2 {
                     let module_name = parts[0];
                     let function_name = parts[1];
-                    
-                    // 处理参数，支持嵌套函数调用
-                    let args_array = match args {
-                        Value::Array(arr) => {
-                            // 数组参数，解析每个元素中可能的嵌套函数
-                            let mut resolved_args = Vec::new();
-                            for arg in arr {
-                                if let Some(obj) = arg.as_object() {
-                                    if obj.len() == 1 {
-                                        // 可能是嵌套函数调用
-                                        if let Some((nested_type, nested_args)) = obj.iter().next() {
-                                            if is_builtin_statement(nested_type) || nested_type.contains('.') {
-                                                // 嵌套函数调用，解析
-                                                let nested_result = execute_statement(nested_type, nested_args, context)?;
-                                                resolved_args.push(nested_result);
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                }
-                                // 普通参数或变量引用
-                                if let Some(text) = arg.as_str() {
-                                    if VariableReference::is_reference(text) {
-                                        if let Some(val) = context.get_value(text) {
-                                            resolved_args.push(val.clone());
-                                        } else {
-                                            resolved_args.push(Value::String(text.to_string()));
-                                        }
-                                    } else {
-                                        resolved_args.push(Value::String(text.to_string()));
-                                    }
-                                } else {
-                                    resolved_args.push(arg.clone());
-                                }
-                            }
-                            resolved_args
-                        },
-                        Value::Object(obj) => {
-                            // 对象参数，特殊处理某些语句
-                            if let Some(array) = obj.get("array") {
-                                if let Some(array_str) = array.as_str() {
-                                    if VariableReference::is_reference(array_str) {
-                                        if let Some(val) = context.get_value(array_str) {
-                                            if let Value::Array(_) = val {
-                                                // 对于array.slice特殊处理
-                                                if stmt_type == "array.slice" {
-                                                    // 创建一个默认值，避免临时值问题
-                                                    let default_start = Value::Number(serde_json::Number::from(0));
-                                                    let start = obj.get("start").unwrap_or(&default_start).clone();
-                                                    let end = obj.get("end");
-                                                    let mut new_args = Vec::new();
-                                                    new_args.push(array.clone());
-                                                    new_args.push(start);
-                                                    if let Some(end_val) = end {
-                                                        new_args.push(end_val.clone());
-                                                    }
-                                                    return execute_array_slice(&Value::Array(new_args), context);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // 将对象转换为数组参数
-                            let mut resolved_args = Vec::new();
-                            for (_, value) in obj {
-                                if let Some(text) = value.as_str() {
-                                    if VariableReference::is_reference(text) {
-                                        if let Some(val) = context.get_value(text) {
-                                            resolved_args.push(val.clone());
-                                        } else {
-                                            resolved_args.push(Value::String(text.to_string()));
-                                        }
-                                    } else {
-                                        resolved_args.push(Value::String(text.to_string()));
-                                    }
+                    let args_array = if args.is_array() {
+                        args.as_array().unwrap().to_vec()
                     } else {
-                                    resolved_args.push(value.clone());
-                                }
-                            }
-                            resolved_args
-                        },
-                        _ => vec![args.clone()]
+                        vec![args.clone()]
                     };
                     
                     // 先检查是否是自定义.jl模块
@@ -165,11 +85,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                                 // 获取函数参数定义
                                 if let Some(params) = func_def.get("params") {
                                     if let Some(params_obj) = params.as_object() {
-                                        // 获取params_obj中的键名列表，保持其定义顺序
-                                        let param_names: Vec<&String> = params_obj.keys().collect();
-                                        // 按照param_names的顺序映射参数，而不是使用迭代器的顺序
-                                        for i in 0..param_names.len() {
-                                            let param_name = param_names[i];
+                                        for (i, (param_name, _)) in params_obj.iter().enumerate() {
                                             if let Some(arg) = args_array.get(i) {
                                                 params_map.insert(param_name.clone(), arg.clone() as Value);
                                             } else {
@@ -182,22 +98,14 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                                 }
 
                                 let params = Value::Object(params_map);
-                                let func_result = execute_function(&func_def_clone, context, Some(&params))?;
-                                
-                                // 向后兼容 - 存储到result变量或output变量
-                                handle_output_variable(args, context, &func_result)?;
-                                
-                                return Ok(func_result);
+                                return execute_function(&func_def_clone, context, Some(&params));
                             }
                         }
                         
                         // 如果不是自定义模块或找不到函数，尝试调用标准模块函数
                         let result = context.call_module_function(module_name, function_name, &args_array)?;
-                        
-                        // 向后兼容 - 存储到result变量或output变量
-                        handle_output_variable(args, context, &result)?;
-                        
-                        return Ok(result);
+                        context.set_variable("result".to_string(), result)?;
+                        return Ok(());
                     } else {
                         // 模块不存在
                         return Err(InterpreterError::ModuleError(
@@ -236,42 +144,10 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                     }
 
                     let func = func.clone();
-                    
-                    // 处理参数，支持嵌套函数调用
-                    let args_array = match args {
-                        Value::Array(arr) => {
-                            // 解析数组参数中的嵌套函数
-                            let mut resolved_args = Vec::new();
-                            for arg in arr {
-                                if let Some(obj) = arg.as_object() {
-                                    if obj.len() == 1 {
-                                        if let Some((nested_type, nested_args)) = obj.iter().next() {
-                                            if is_builtin_statement(nested_type) || nested_type.contains('.') {
-                                                let nested_result = execute_statement(nested_type, nested_args, context)?;
-                                                resolved_args.push(nested_result);
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                }
-                                // 处理普通参数或变量引用
-                                if let Some(text) = arg.as_str() {
-                                    if VariableReference::is_reference(text) {
-                                        if let Some(val) = context.get_value(text) {
-                                            resolved_args.push(val.clone());
-                                        } else {
-                                            resolved_args.push(Value::String(text.to_string()));
-                                        }
-                                    } else {
-                                        resolved_args.push(Value::String(text.to_string()));
-                                    }
+                    let args_array = if args.is_array() {
+                        args.as_array().unwrap().to_vec()
                     } else {
-                                    resolved_args.push(arg.clone());
-                                }
-                            }
-                            resolved_args
-                        },
-                        _ => vec![args.clone()]
+                        vec![args.clone()]
                     };
 
                     // 获取函数参数定义
@@ -291,11 +167,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
 
                     // 创建参数对象
                     let mut params_map = serde_json::Map::new();
-                    // 获取params_obj中的键名列表，保持其定义顺序
-                    let param_names: Vec<&String> = params_obj.keys().collect();
-                    // 按照param_names的顺序映射参数，而不是使用迭代器的顺序
-                    for i in 0..param_names.len() {
-                        let param_name = param_names[i];
+                    for (i, (param_name, _)) in params_obj.iter().enumerate() {
                         if let Some(arg) = args_array.get(i) {
                             params_map.insert(param_name.clone(), arg.clone() as Value);
                         } else {
@@ -310,33 +182,11 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context) -
                 }
             }
 
-            return Err(InterpreterError::RuntimeError(
+            Err(InterpreterError::RuntimeError(
                 statement::unknown_statement_type(stmt_type)
-            ));
+            ))
         }
-    }?;
-    
-    // 向后兼容 - 处理输出变量
-    handle_output_variable(args, context, &result)?;
-    
-    Ok(result)
-}
-
-// 处理输出变量（兼容方案一）
-fn handle_output_variable(args: &Value, context: &mut Context, result: &Value) -> Result<()> {
-    if let Some(obj) = args.as_object() {
-        if let Some(output_var) = obj.get("output").and_then(|v| v.as_str()) {
-            context.set_variable(output_var.to_string(), result.clone())?;
-        } else {
-            // 向后兼容 - 默认存储到result变量
-            context.set_variable("result".to_string(), result.clone())?;
-        }
-    } else {
-        // 向后兼容 - 默认存储到result变量
-        context.set_variable("result".to_string(), result.clone())?;
     }
-    
-    Ok(())
 }
 
 // 检查是否是内置语句
