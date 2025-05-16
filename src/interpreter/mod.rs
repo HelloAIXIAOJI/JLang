@@ -45,7 +45,8 @@ impl Interpreter {
         for stmt in statements.to_vec() {
             if let Some(obj) = stmt.as_object() {
                 if let Some((stmt_type, args)) = obj.iter().next() {
-                    match execute_statement(stmt_type, args, &mut self.context) {
+                    // 将完整语句对象传递给execute_statement
+                    match execute_statement(stmt_type, args, &mut self.context, Some(&stmt)) {
                         Ok(_) => {},
                         Err(e) => {
                             // 在全面检查模式下，只收集错误而不终止
@@ -115,7 +116,7 @@ impl Interpreter {
         for (i, stmt) in statements.iter().enumerate() {
             if let Some(obj) = stmt.as_object() {
                 if let Some((stmt_type, args)) = obj.iter().next() {
-                    match execute_statement(stmt_type, args, &mut self.context) {
+                    match execute_statement(stmt_type, args, &mut self.context, Some(stmt)) {
                         Ok(_) => {},
                         Err(e) => {
                             // 记录错误信息及其位置

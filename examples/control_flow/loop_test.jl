@@ -13,7 +13,7 @@
                     },
                     "body": [
                         {"echo": ["计数：", "@var.counter", "\n"]},
-                        {"call": ["math.add", "@var.counter", 1]},
+                        {"math.add": ["@var.counter", 1]},
                         {"var": {"counter": "@var.result"}}
                     ]
                 }},

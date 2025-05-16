@@ -131,7 +131,7 @@ JiLang --check my_program.jl
 
 ## Status
 
-JiLang is experimental and not suitable for production use. While technically Turing complete, it was created as a programming experiment. Feel free to explore, learn, and contribute, but use mature languages for serious projects.
+JiLang is currently in active development. With major improvements in version 0.4.0, the language features are becoming more complete, but it is still not recommended for critical production environments. It is both a programming experiment and an evolving tool. While we welcome all kinds of exploration, learning and contributions, please consider using more widely validated languages for enterprise-critical applications.
 
 ## License
 

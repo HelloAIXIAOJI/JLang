@@ -21,9 +21,20 @@ impl JlModule {
         if let Some(program_obj) = program.get("program") {
             if let Some(obj) = program_obj.as_object() {
                 for (func_name, func_def) in obj {
+                    if crate::is_debug_mode() {
+                        println!("在模块 '{}' 中找到函数: {}", name, func_name);
+                    }
                     functions.push((func_name.clone(), func_def.clone()));
                 }
+            } else if crate::is_debug_mode() {
+                println!("警告: 模块 '{}' 中的 'program' 不是对象", name);
             }
+        } else if crate::is_debug_mode() {
+            println!("警告: 模块 '{}' 中没有 'program' 字段", name);
+        }
+
+        if crate::is_debug_mode() {
+            println!("模块 '{}' 中共加载了 {} 个函数", name, functions.len());
         }
 
         Ok(JlModule {
@@ -49,8 +60,26 @@ impl Module for JlModule {
 
 impl JlModule {
     pub fn get_function(&self, name: &str) -> Option<&Value> {
-        self.functions.iter()
+        if crate::is_debug_mode() {
+            println!("尝试在模块 '{}' 中查找函数: '{}'", self.name, name);
+            println!("可用函数: {}", self.functions.iter()
+                .map(|(fname, _)| fname.clone())
+                .collect::<Vec<_>>()
+                .join(", "));
+        }
+        
+        let result = self.functions.iter()
             .find(|(func_name, _)| func_name == name)
-            .map(|(_, func_def)| func_def)
+            .map(|(_, func_def)| func_def);
+            
+        if crate::is_debug_mode() {
+            if result.is_some() {
+                println!("在模块 '{}' 中找到函数: '{}'", self.name, name);
+            } else {
+                println!("在模块 '{}' 中未找到函数: '{}'", self.name, name);
+            }
+        }
+        
+        result
     }
 } 

@@ -4,9 +4,10 @@ use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement;
 use super::super::variable_reference::{VariableReference, ReferenceType};
 use crate::is_debug_mode;
+use super::store_result_with_compatibility;
 
 // 执行var语句 - 变量定义
-pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(vars_obj) = args.as_object() {
         for (var_name, value) in vars_obj {
             let resolved_value = if let Some(text) = value.as_str() {
@@ -17,12 +18,185 @@ pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<()> 
                 } else {
                     Value::String(text.to_string())
                 }
+            } else if let Some(obj) = value.as_object() {
+                // 检查是否是嵌套函数调用（单键对象）
+                if obj.len() == 1 {
+                    let (func_type, func_args) = obj.iter().next().unwrap();
+                    
+                    // 处理嵌套函数调用
+                    if func_type.contains('.') {
+                        // 可能是模块函数调用
+                        let parts: Vec<&str> = func_type.split('.').collect();
+                        if parts.len() == 2 {
+                            let module_name = parts[0];
+                            let function_name = parts[1];
+                            
+                            if is_debug_mode() {
+                                println!("检测到嵌套模块函数调用: {}.{}", module_name, function_name);
+                            }
+                            
+                            // 解析函数参数
+                            let args_list = match func_args {
+                                Value::Array(arr) => arr.clone(),
+                                _ => vec![func_args.clone()],
+                            };
+                            
+                            // 直接调用模块函数并获取结果
+                            match context.call_module_function(module_name, function_name, &args_list) {
+                                Ok(result) => {
+                                    if is_debug_mode() {
+                                        println!("嵌套模块函数调用成功: {} => {:?}", func_type, result);
+                                    }
+                                    result
+                                },
+                                Err(e) => {
+                                    if is_debug_mode() {
+                                        println!("嵌套模块函数调用失败: {}", e);
+                                    }
+                                    // 如果调用失败，作为普通对象处理
+                                    value.clone()
+                                }
+                            }
+                        } else {
+                            // 点号格式不正确，作为普通对象处理
+                            value.clone()
+                        }
+                    } else if super::is_builtin_statement(func_type) {
+                        // 内置语句
+                        if is_debug_mode() {
+                            println!("检测到嵌套内置语句: {}", func_type);
+                        }
+                        
+                        // 执行嵌套的内置语句并获取结果
+                        match super::execute_statement(func_type, func_args, context, Some(value)) {
+                            Ok(result) => {
+                                if is_debug_mode() {
+                                    println!("嵌套内置语句成功执行: {} => {:?}", func_type, result);
+                                }
+                                result
+                            },
+                            Err(e) => {
+                                // 如果执行失败，作为普通对象处理
+                                if is_debug_mode() {
+                                    println!("嵌套内置语句执行失败: {}", e);
+                                }
+                                value.clone()
+                            }
+                        }
+                    } else {
+                        // 可能是自定义函数调用或者普通对象
+                        // 尝试在program中查找函数定义
+                        if let Some(program_obj) = context.program.get("program") {
+                            if program_obj.get(func_type).is_some() {
+                                if is_debug_mode() {
+                                    println!("检测到嵌套自定义函数调用: {}", func_type);
+                                }
+                                
+                                // 执行嵌套的自定义函数调用并获取结果
+                                match super::execute_statement(func_type, func_args, context, Some(value)) {
+                                    Ok(result) => {
+                                        if is_debug_mode() {
+                                            println!("嵌套自定义函数调用成功: {} => {:?}", func_type, result);
+                                        }
+                                        result
+                                    },
+                                    Err(e) => {
+                                        // 如果执行失败，作为普通对象处理
+                                        if is_debug_mode() {
+                                            println!("嵌套自定义函数调用执行失败: {}", e);
+                                        }
+                                        value.clone()
+                                    }
+                                }
+                            } else {
+                                // 不是函数调用，普通对象
+                                value.clone()
+                            }
+                        } else {
+                            // 没有program定义，普通对象
+                            value.clone()
+                        }
+                    }
+                } else {
+                    // 多键对象，不是函数调用
+                    value.clone()
+                }
             } else {
                 value.clone()
             };
             context.set_variable(var_name.clone(), resolved_value)?;
         }
-        Ok(())
+        // 返回定义的最后一个变量的值，如果没有则返回null
+        let result = if let Some((_, last_value)) = vars_obj.iter().last() {
+            if let Some(text) = last_value.as_str() {
+                if VariableReference::is_reference(text) {
+                    let var_ref = VariableReference::parse(text);
+                    var_ref.resolve_value(&context.variables, &context.constants)
+                } else {
+                    Value::String(text.to_string())
+                }
+            } else if let Some(obj) = last_value.as_object() {
+                // 使用与上面相同的逻辑检查最后一个值是否是嵌套函数调用
+                if obj.len() == 1 {
+                    let (func_type, func_args) = obj.iter().next().unwrap();
+                    
+                    // 处理嵌套函数调用
+                    if func_type.contains('.') {
+                        // 可能是模块函数调用
+                        let parts: Vec<&str> = func_type.split('.').collect();
+                        if parts.len() == 2 {
+                            let module_name = parts[0];
+                            let function_name = parts[1];
+                            
+                            // 解析函数参数
+                            let args_list = match func_args {
+                                Value::Array(arr) => arr.clone(),
+                                _ => vec![func_args.clone()],
+                            };
+                            
+                            // 直接调用模块函数并获取结果
+                            match context.call_module_function(module_name, function_name, &args_list) {
+                                Ok(result) => result,
+                                Err(_) => last_value.clone()
+                            }
+                        } else {
+                            last_value.clone()
+                        }
+                    } else if super::is_builtin_statement(func_type) {
+                        // 执行内置语句并获取结果
+                        match super::execute_statement(func_type, func_args, context, Some(last_value)) {
+                            Ok(result) => result,
+                            Err(_) => last_value.clone()
+                        }
+                    } else {
+                        // 尝试在program中查找函数定义
+                        if let Some(program_obj) = context.program.get("program") {
+                            if program_obj.get(func_type).is_some() {
+                                // 执行自定义函数并获取结果
+                                match super::execute_statement(func_type, func_args, context, Some(last_value)) {
+                                    Ok(result) => result,
+                                    Err(_) => last_value.clone()
+                                }
+                            } else {
+                                last_value.clone()
+                            }
+                        } else {
+                            last_value.clone()
+                        }
+                    }
+                } else {
+                    last_value.clone()
+                }
+            } else {
+                last_value.clone()
+            }
+        } else {
+            Value::Null
+        };
+        
+        // 存储结果并返回
+        store_result_with_compatibility(args, &result, context)?;
+        Ok(result)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_obj("var")
@@ -31,38 +205,123 @@ pub fn execute_var_statement(args: &Value, context: &mut Context) -> Result<()> 
 }
 
 // 执行echo语句 - 输出内容
-pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<Value> {
+    // 处理数组格式
     if let Some(parts) = args.as_array() {
+        let mut output = String::new();
         for part in parts {
             // 使用可能抛出错误的版本处理变量引用
             let text = context.resolve_value_with_error(part)?;
+            output.push_str(&text);
             print!("{}", text);
         }
-        Ok(())
-    } else {
-        Err(InterpreterError::RuntimeError(
-            statement::param_must_be_array("echo")
-        ))
+        // 返回输出的完整字符串
+        let result = Value::String(output);
+        
+        // 始终将结果存储到result变量（与concat语句数组格式行为一致）
+        context.set_variable("result".to_string(), result.clone())?;
+        
+        return Ok(result);
     }
+    
+    // 处理对象格式（包含output参数）
+    if let Some(obj) = args.as_object() {
+        let mut parts = Vec::new();
+        let mut i = 0;
+        
+        // 收集所有数字索引参数，按顺序放入parts数组
+        while let Some(part) = obj.get(&i.to_string()) {
+            parts.push(part.clone());
+            i += 1;
+        }
+        
+        if parts.is_empty() {
+            return Err(InterpreterError::RuntimeError(
+                statement::param_must_be_array("echo")
+            ));
+        }
+        
+        // 处理parts数组
+        let mut output = String::new();
+        for part in parts {
+            let text = context.resolve_value_with_error(&part)?;
+            output.push_str(&text);
+            print!("{}", text);
+        }
+        
+        // 返回输出的完整字符串
+        let result = Value::String(output);
+        
+        // 始终将结果存储到result变量
+        context.set_variable("result".to_string(), result.clone())?;
+        
+        // 如果指定了output参数，则额外存储到该变量
+        if let Some(output_var) = obj.get("output").and_then(|v| v.as_str()) {
+            if output_var != "result" {  // 避免重复设置result
+                context.set_variable(output_var.to_string(), result.clone())?;
+            }
+        }
+        
+        return Ok(result);
+    }
+    
+    // 既不是数组也不是对象，返回错误
+    Err(InterpreterError::RuntimeError(
+        statement::param_must_be_array("echo")
+    ))
 }
 
 // 执行concat语句 - 字符串拼接
-pub fn execute_concat_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_concat_statement(args: &Value, context: &mut Context) -> Result<Value> {
+    // 处理数组格式 (新的简化格式)
+    if let Some(parts_array) = args.as_array() {
+        let mut result_str = String::new();
+        for part in parts_array {
+            let resolved_value = context.resolve_value_with_error(part)?;
+            result_str.push_str(&resolved_value);
+        }
+        let result = Value::String(result_str);
+        
+        // 存储结果到默认的result变量
+        context.set_variable("result".to_string(), result.clone())?;
+        
+        return Ok(result);
+    }
+    
+    // 处理对象格式 (原有格式)
     if let Some(obj) = args.as_object() {
         if let (Some(target), Some(parts)) = (obj.get("target"), obj.get("parts")) {
             if let Some(parts_array) = parts.as_array() {
-                let mut result = String::new();
+                let mut result_str = String::new();
                 for part in parts_array {
-                    result.push_str(&context.resolve_value(part));
+                    result_str.push_str(&context.resolve_value(part));
                 }
+                let result = Value::String(result_str);
+                
+                // 存储到指定目标变量
                 context.set_variable(
                     target.as_str().unwrap_or("result").to_string(),
-                    Value::String(result)
+                    result.clone()
                 )?;
+                
+                // 只有明确指定output参数时才额外存储结果
+                if obj.get("output").is_some() {
+                    store_result_with_compatibility(args, &result, context)?;
+                }
+                return Ok(result);
             }
         }
     }
-    Ok(())
+    // 如果参数无效，返回空字符串
+    let result = Value::String(String::new());
+    
+    // 只有明确指定output参数时才存储结果
+    if let Some(obj) = args.as_object() {
+        if obj.get("output").is_some() {
+            store_result_with_compatibility(args, &result, context)?;
+        }
+    }
+    Ok(result)
 }
 
 // 评估条件表达式
@@ -199,42 +458,37 @@ pub fn evaluate_condition(condition: &Value, context: &Context) -> bool {
             let left_num = left_val.parse::<f64>();
             let right_num = right_val.parse::<f64>();
             
-            match (left_num, right_num) {
-                (Ok(ln), Ok(rn)) => {
-                    // 两边都是数字，进行数值比较
-                    match op.as_str().unwrap_or("") {
-                        "eq" => (ln - rn).abs() < std::f64::EPSILON,
-                        "neq" => (ln - rn).abs() >= std::f64::EPSILON,
-                        "gt" => ln > rn,
-                        "lt" => ln < rn,
-                        "gte" => ln >= rn,
-                        "lte" => ln <= rn,
-                        _ => false
-                    }
-                },
-                _ => {
-                    // 字符串比较或其他类型
-                    match op.as_str().unwrap_or("") {
-                        "eq" => left_val == right_val,
-                        "neq" => left_val != right_val,
-                        "gt" => left_val > right_val,
-                        "lt" => left_val < right_val,
-                        "gte" => left_val >= right_val,
-                        "lte" => left_val <= right_val,
-                        _ => false
-                    }
+            if let (Ok(ln), Ok(rn)) = (left_num, right_num) {
+                match op.as_str().unwrap_or("") {
+                    "eq" => return (ln - rn).abs() < std::f64::EPSILON,
+                    "neq" => return (ln - rn).abs() >= std::f64::EPSILON,
+                    "gt" => return ln > rn,
+                    "lt" => return ln < rn,
+                    "gte" => return ln >= rn,
+                    "lte" => return ln <= rn,
+                    _ => {}
                 }
             }
-        } else {
-            false
+            
+            // 当数字比较不可行时，使用字符串比较
+            match op.as_str().unwrap_or("") {
+                "eq" => return left_val == right_val,
+                "neq" => return left_val != right_val,
+                "gt" => return left_val > right_val,
+                "lt" => return left_val < right_val,
+                "gte" => return left_val >= right_val,
+                "lte" => return left_val <= right_val,
+                "and" => return left_val != "0" && left_val != "false" && left_val != "" && right_val != "0" && right_val != "false" && right_val != "",
+                "or" => return left_val != "0" && left_val != "false" && left_val != "" || right_val != "0" && right_val != "false" && right_val != "",
+                _ => return false
+            }
         }
-    } else {
-        false
     }
+    false
 }
 
 // 执行注释语句 - 不做任何操作，仅在调试模式下显示注释内容
-pub fn execute_comment_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_comment_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if is_debug_mode() {
         println!("执行注释: {:?}", args);
         
@@ -249,5 +503,14 @@ pub fn execute_comment_statement(args: &Value, context: &mut Context) -> Result<
             println!();
         }
     }
-    Ok(())
+    // 注释语句返回null值
+    let result = Value::Null;
+    
+    // 只有明确指定output参数时才存储结果
+    if let Some(obj) = args.as_object() {
+        if obj.get("output").is_some() {
+            store_result_with_compatibility(args, &result, context)?;
+        }
+    }
+    Ok(result)
 } 

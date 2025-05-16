@@ -1,0 +1,20 @@
+{
+    "include": ["math"],
+    "program": {
+        "sum": {
+            "params": {
+                "a": "number",
+                "b": "number"
+            },
+            "body": [
+                {"var": {"result": {"math.add": ["@params.a", "@params.b"]}}},
+                {"return": "@var.result"}
+            ]
+        },
+        "main": {
+            "body": [
+                {"echo": [{"sum": [5, 3]}]}
+            ]
+        }
+    }
+}

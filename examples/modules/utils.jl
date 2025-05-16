@@ -1,4 +1,9 @@
 {
+    "module_meta": {
+        "version": "1.0.0",
+        "description": "JiLang实用工具模块",
+        "author": "JiLang团队"
+    },
     "program": {
         "greet": {
             "params": {

@@ -3,9 +3,10 @@ use std::process::Command;
 use super::super::context::Context;
 use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement::exec;
+use super::store_result_with_compatibility;
 
 // execute_exec_statement - 执行系统命令
-pub fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         // 获取命令
         let cmd = if let Some(cmd) = obj.get("cmd") {
@@ -54,10 +55,15 @@ pub fn execute_exec_statement(args: &Value, context: &mut Context) -> Result<()>
                 result_obj.insert("stderr".to_string(), Value::String(stderr));
                 result_obj.insert("status".to_string(), Value::Number(serde_json::Number::from(status)));
                 
-                // 保存结果
-                context.set_variable(output_var.to_string(), Value::Object(result_obj))?;
+                let result = Value::Object(result_obj);
                 
-                Ok(())
+                // 保存结果
+                context.set_variable(output_var.to_string(), result.clone())?;
+                
+                // 兼容性处理 - 如果output_var不是"result"，则同时存储在"result"变量中
+                store_result_with_compatibility(args, &result, context)?;
+                
+                Ok(result)
             },
             Err(e) => {
                 Err(InterpreterError::RuntimeError(

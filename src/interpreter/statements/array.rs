@@ -3,9 +3,10 @@ use super::super::context::Context;
 use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement::{self, array};
 use super::super::variable_reference::{VariableReference, ReferenceType};
+use super::store_result_with_compatibility;
 
 // execute_array_create - 创建新数组
-pub fn execute_array_create(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_create(args: &Value, context: &mut Context) -> Result<Value> {
     let result = if let Some(args_array) = args.as_array() {
         // 如果提供了初始元素，则使用它们创建数组
         // 处理每个元素，解析变量引用
@@ -68,12 +69,13 @@ pub fn execute_array_create(args: &Value, context: &mut Context) -> Result<()> {
         Value::Array(Vec::new())
     };
     
-    context.set_variable("result".to_string(), result)?;
-    Ok(())
+    // 存储结果
+    store_result_with_compatibility(args, &result, context)?;
+    Ok(result)
 }
 
 // execute_array_push - 向数组末尾添加元素
-pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -143,10 +145,12 @@ pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<()> {
         // 更新数组变量
         context.set_variable(array_var_name, Value::Array(array.clone()))?;
         
-        // 将修改后的数组也存储在result变量中
-        context.set_variable("result".to_string(), Value::Array(array))?;
+        // 将修改后的数组作为结果
+        let result = Value::Array(array);
         
-        Ok(())
+        // 存储结果
+        store_result_with_compatibility(args, &result, context)?;
+        Ok(result)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.push")
@@ -155,7 +159,7 @@ pub fn execute_array_push(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_pop - 从数组末尾移除元素
-pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::RuntimeError(
@@ -213,10 +217,10 @@ pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<()> {
         // 更新数组变量
         context.set_variable(array_var_name.to_string(), Value::Array(array))?;
         
-        // 将弹出的元素存储在result变量中
-        context.set_variable("result".to_string(), popped)?;
-        
-        Ok(())
+        // 将弹出的元素作为结果
+        // 存储结果
+        store_result_with_compatibility(args, &popped, context)?;
+        Ok(popped)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.pop")
@@ -225,7 +229,7 @@ pub fn execute_array_pop(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_get - 获取数组指定索引的元素
-pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -306,9 +310,8 @@ pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<()> {
         };
         
         // 存储结果
-        context.set_variable("result".to_string(), element)?;
-        
-        Ok(())
+        store_result_with_compatibility(args, &element, context)?;
+        Ok(element)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.get")
@@ -317,7 +320,7 @@ pub fn execute_array_get(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_set - 设置数组指定索引的元素
-pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 3 {
             return Err(InterpreterError::RuntimeError(
@@ -401,10 +404,12 @@ pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<()> {
         // 更新数组变量
         context.set_variable(array_var_name.to_string(), Value::Array(array.clone()))?;
         
-        // 将修改后的数组也存储在result变量中
-        context.set_variable("result".to_string(), Value::Array(array))?;
+        // 将修改后的数组作为结果
+        let result = Value::Array(array);
         
-        Ok(())
+        // 存储结果
+        store_result_with_compatibility(args, &result, context)?;
+        Ok(result)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.set")
@@ -413,7 +418,7 @@ pub fn execute_array_set(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_length - 获取数组长度
-pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.is_empty() {
             return Err(InterpreterError::RuntimeError(
@@ -451,11 +456,11 @@ pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<()> {
         
         // 获取长度
         let length = array.len();
+        let result = Value::Number(serde_json::Number::from(length));
         
         // 存储结果
-        context.set_variable("result".to_string(), Value::Number(serde_json::Number::from(length)))?;
-        
-        Ok(())
+        store_result_with_compatibility(args, &result, context)?;
+        Ok(result)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.length")
@@ -464,7 +469,7 @@ pub fn execute_array_length(args: &Value, context: &mut Context) -> Result<()> {
 }
 
 // execute_array_slice - 获取数组切片
-pub fn execute_array_slice(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_array_slice(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(args_array) = args.as_array() {
         if args_array.len() < 2 {
             return Err(InterpreterError::RuntimeError(
@@ -536,10 +541,11 @@ pub fn execute_array_slice(args: &Value, context: &mut Context) -> Result<()> {
             Vec::new()
         };
         
-        // 存储结果
-        context.set_variable("result".to_string(), Value::Array(slice))?;
+        let result = Value::Array(slice);
         
-        Ok(())
+        // 存储结果
+        store_result_with_compatibility(args, &result, context)?;
+        Ok(result)
     } else {
         Err(InterpreterError::RuntimeError(
             statement::param_must_be_array("array.slice")

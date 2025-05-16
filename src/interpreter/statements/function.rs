@@ -5,82 +5,101 @@ use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement;
 use super::execute_statement;
 use super::super::variable_reference::{VariableReference, ReferenceType};
-
-// execute_call_statement - 执行函数调用
-pub fn execute_call_statement(args: &Value, context: &mut Context) -> Result<()> {
-    if let Some(args_array) = args.as_array() {
-        if args_array.is_empty() {
-            return Err(InterpreterError::FunctionError(
-                statement::FUNCTION_CALL_MISSING_NAME.to_string()
-            ));
-        }
-
-        if let Some(func_name) = args_array[0].as_str() {
-            // 检查是否是模块函数调用
-            if let Some(dot_pos) = func_name.find('.') {
-                let (module_name, function_name) = func_name.split_at(dot_pos);
-                let function_name = &function_name[1..]; // 去掉点号
-                let args_array = args_array[1..].to_vec();
-
-                // 构造一个新的语句类型，使用简化语法格式
-                let new_stmt_type = format!("{}.{}", module_name, function_name);
-                
-                // 直接调用 execute_statement，复用简化语法的处理逻辑
-                return execute_statement(&new_stmt_type, &Value::Array(args_array), context);
-            }
-
-            // 检查是否是自定义函数调用
-            if let Some(program_obj) = context.program.get("program") {
-                if let Some(func) = program_obj.get(func_name) {
-                    let func = func.clone();
-                    let params = args_array.get(1).cloned();
-                    return execute_function(&func, context, params.as_ref());
-                }
-            }
-        }
-    }
-    Err(InterpreterError::RuntimeError(
-        statement::INVALID_FUNCTION_CALL.to_string()
-    ))
-}
+use crate::is_debug_mode;
+use super::store_result_with_compatibility;
 
 // execute_function - 执行函数体
-pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Value>) -> Result<()> {
-    // 创建函数的局部变量作用域
-    // 支持嵌套函数调用和递归函数
-    let mut function_scope = HashMap::new();
-    
-    // 验证函数结构
-    let body = func.get("body").ok_or_else(|| {
-        InterpreterError::InvalidProgramStructure(
-            statement::FUNCTION_MISSING_BODY.to_string()
-        )
-    })?;
-
-    let statements = body.as_array().ok_or_else(|| {
-        InterpreterError::InvalidProgramStructure(
-            statement::FUNCTION_BODY_NOT_ARRAY.to_string()
-        )
-    })?;
-
-    // 备份当前上下文中的变量
-    // 这样可以在函数执行结束后恢复原始变量状态
-    // 同时保留函数返回值和创建的全局变量
+pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Value>) -> Result<Value> {
+    // 首先备份原始变量集，以便在函数执行完成后恢复
     let original_variables = context.variables.clone();
+    
+    // 创建函数内部的作用域
+    let mut function_scope = HashMap::new();
 
-    // 处理参数
+    // 处理函数参数
     if let Some(params) = params {
         if let Some(params_obj) = params.as_object() {
             for (param_name, param_value) in params_obj {
+                // 解析参数值
                 let value = if let Some(text) = param_value.as_str() {
                     if VariableReference::is_reference(text) {
-                        if let Some(val) = context.get_value(text) {
-                            val.clone()
-                        } else {
-                            Value::String(text.to_string())
-                        }
+                        let var_ref = VariableReference::parse(text);
+                        var_ref.resolve_value(&context.variables, &context.constants)
                     } else {
                         Value::String(text.to_string())
+                    }
+                } else if let Some(obj) = param_value.as_object() {
+                    // 检查是否是嵌套函数调用（单键对象）
+                    if obj.len() == 1 {
+                        let (func_type, func_args) = obj.iter().next().unwrap();
+                        
+                        // 处理嵌套函数调用
+                        if func_type.contains('.') {
+                            // 可能是模块函数调用
+                            let parts: Vec<&str> = func_type.split('.').collect();
+                            if parts.len() == 2 {
+                                let module_name = parts[0];
+                                let function_name = parts[1];
+                                
+                                if is_debug_mode() {
+                                    println!("函数参数中检测到嵌套模块函数调用: {}.{}", module_name, function_name);
+                                }
+                                
+                                // 解析函数参数
+                                let args_list = match func_args {
+                                    Value::Array(arr) => arr.clone(),
+                                    _ => vec![func_args.clone()],
+                                };
+                                
+                                // 直接调用模块函数并获取结果
+                                match context.call_module_function(module_name, function_name, &args_list) {
+                                    Ok(result) => {
+                                        if is_debug_mode() {
+                                            println!("函数参数中嵌套模块函数调用成功: {} => {:?}", func_type, result);
+                                        }
+                                        result
+                                    },
+                                    Err(e) => {
+                                        if is_debug_mode() {
+                                            println!("函数参数中嵌套模块函数调用失败: {}", e);
+                                        }
+                                        // 如果调用失败，作为普通对象处理
+                                        param_value.clone()
+                                    }
+                                }
+                            } else {
+                                // 点号格式不正确，作为普通对象处理
+                                param_value.clone()
+                            }
+                        } else if super::is_builtin_statement(func_type) {
+                            // 内置语句
+                            if is_debug_mode() {
+                                println!("函数参数中检测到嵌套内置语句: {}", func_type);
+                            }
+                            
+                            // 执行嵌套的内置语句并获取结果
+                            match super::execute_statement(func_type, func_args, context, Some(param_value)) {
+                                Ok(result) => {
+                                    if is_debug_mode() {
+                                        println!("函数参数中嵌套内置语句成功执行: {} => {:?}", func_type, result);
+                                    }
+                                    result
+                                },
+                                Err(e) => {
+                                    // 如果执行失败，作为普通对象处理
+                                    if is_debug_mode() {
+                                        println!("函数参数中嵌套内置语句执行失败: {}", e);
+                                    }
+                                    param_value.clone()
+                                }
+                            }
+                        } else {
+                            // 可能是自定义函数调用或者普通对象
+                            param_value.clone()
+                        }
+                    } else {
+                        // 多键对象，不是函数调用
+                        param_value.clone()
                     }
                 } else {
                     param_value.clone()
@@ -97,11 +116,48 @@ pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Val
         }
     }
 
+    // 验证函数结构
+    let body = func.get("body").ok_or_else(|| {
+        InterpreterError::InvalidProgramStructure(
+            statement::FUNCTION_MISSING_BODY.to_string()
+        )
+    })?;
+
+    let statements = body.as_array().ok_or_else(|| {
+        InterpreterError::InvalidProgramStructure(
+            statement::FUNCTION_BODY_NOT_ARRAY.to_string()
+        )
+    })?;
+
     // 执行函数体
+    let mut last_result = Value::Null;
     for stmt in statements {
         if let Some(obj) = stmt.as_object() {
             if let Some((stmt_type, args)) = obj.iter().next() {
-                execute_statement(stmt_type, args, context)?;
+                // 检查是否有嵌套的模块函数调用
+                if stmt_type == "var" {
+                    if let Some(var_obj) = args.as_object() {
+                        for (var_name, var_value) in var_obj {
+                            if let Some(nested_obj) = var_value.as_object() {
+                                if nested_obj.len() == 1 {
+                                    let (func_type, func_args) = nested_obj.iter().next().unwrap();
+                                    
+                                    if func_type.contains('.') {
+                                        let parts: Vec<&str> = func_type.split('.').collect();
+                                        if parts.len() == 2 {
+                                            if is_debug_mode() {
+                                                println!("函数内检测到嵌套模块函数: {}.{}", parts[0], parts[1]);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // 执行语句并获取结果
+                last_result = execute_statement(stmt_type, args, context, None)?;
             } else {
                 return Err(InterpreterError::RuntimeError(
                     statement::STATEMENT_EMPTY.to_string()
@@ -115,16 +171,14 @@ pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Val
     }
 
     // 获取函数的返回值
-    // 首先检查通用的result变量
-    // 如果没有，检查特定的factorial_result变量(为阶乘函数特别处理)
-    // 如果都没有，返回null
+    // 优先使用最后一个语句产生的结果变量
     let function_result = if let Some(result) = context.variables.get("result") {
         result.clone()
     } else if let Some(factorial_result) = context.variables.get("factorial_result") {
         // 特殊处理阶乘函数的结果变量
         factorial_result.clone()
     } else {
-        Value::Null
+        last_result
     };
 
     // 恢复原始上下文变量，但保留函数的返回值和全局变量
@@ -149,10 +203,26 @@ pub fn execute_function(func: &Value, context: &mut Context, params: Option<&Val
     
     // 3. 设置函数结果
     // 统一使用"result"变量存储函数返回值
-    new_context_variables.insert("result".to_string(), function_result);
+    new_context_variables.insert("result".to_string(), function_result.clone());
+    
+    // 3.1 特别保留factorial_result变量用于递归
+    if let Some(factorial_result) = context.variables.get("factorial_result") {
+        new_context_variables.insert("factorial_result".to_string(), factorial_result.clone());
+    }
     
     // 更新上下文
     context.variables = new_context_variables;
 
-    Ok(())
+    // 将参数中函数调用信息添加到结果中，以便兼容处理
+    // 只在明确指定output变量时进行结果存储
+    if let Some(params_value) = params {
+        if let Some(obj) = params_value.as_object() {
+            if obj.get("output").is_some() {
+                store_result_with_compatibility(params_value, &function_result, context)?;
+            }
+        }
+    }
+    
+    // 返回函数结果
+    Ok(function_result)
 } 

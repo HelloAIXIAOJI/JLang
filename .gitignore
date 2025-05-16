@@ -1,2 +1,5 @@
 /target
 /TEST
+.gitignore
+/.cursor
+/tools

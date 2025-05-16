@@ -6,9 +6,10 @@ use super::basic::evaluate_condition;
 use super::get_number_value;
 use super::execute_statement;
 use super::super::variable_reference::{VariableReference, ReferenceType};
+use super::store_result_with_compatibility;
 
 // execute_if_statement - 执行if条件语句
-pub fn execute_if_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_if_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         if let (Some(condition), Some(then_block)) = (obj.get("condition"), obj.get("then")) {
             let condition_result = evaluate_condition(condition, context);
@@ -18,36 +19,57 @@ pub fn execute_if_statement(args: &Value, context: &mut Context) -> Result<()> {
                 obj.get("else").unwrap_or(then_block)
             };
 
+            let mut last_result = Value::Null;
             if let Some(statements) = block.as_array() {
                 for stmt in statements {
                     if let Some(obj) = stmt.as_object() {
                         if let Some((stmt_type, args)) = obj.iter().next() {
-                            execute_statement(stmt_type, args, context)?;
+                            last_result = execute_statement(stmt_type, args, context, None)?;
                         }
                     }
                 }
             }
+            
+            // 存储结果并返回
+            store_result_with_compatibility(args, &last_result, context)?;
+            return Ok(last_result);
         }
     }
-    Ok(())
+    // 如果条件语句无效，返回null
+    let result = Value::Null;
+    store_result_with_compatibility(args, &result, context)?;
+    Ok(result)
 }
 
 // execute_while_statement - 执行while循环语句
-pub fn execute_while_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_while_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         if let (Some(condition), Some(body)) = (obj.get("condition"), obj.get("body")) {
+            let mut last_result = Value::Null;
+            let mut iteration_count = 0;
+            
             while evaluate_condition(condition, context) {
                 if let Some(statements) = body.as_array() {
                     for stmt in statements {
                         if let Some(obj) = stmt.as_object() {
                             if let Some((stmt_type, args)) = obj.iter().next() {
-                                execute_statement(stmt_type, args, context)?;
+                                last_result = execute_statement(stmt_type, args, context, None)?;
                             }
                         }
                     }
                 }
+                iteration_count += 1;
             }
-            Ok(())
+            
+            // 构造结果对象
+            let mut result_obj = serde_json::Map::new();
+            result_obj.insert("iterations".to_string(), Value::Number(serde_json::Number::from(iteration_count)));
+            result_obj.insert("last_result".to_string(), last_result);
+            let result = Value::Object(result_obj);
+            
+            // 存储结果并返回
+            store_result_with_compatibility(args, &result, context)?;
+            Ok(result)
         } else {
             Err(InterpreterError::RuntimeError(
                 control_flow::WHILE_MISSING_FIELDS.to_string()
@@ -61,7 +83,7 @@ pub fn execute_while_statement(args: &Value, context: &mut Context) -> Result<()
 }
 
 // execute_for_statement - 执行for循环语句，支持多种循环方式
-pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> {
+pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
         // 支持数组遍历语法
         if let Some(array_expr) = obj.get("in") {
@@ -96,6 +118,9 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                     ));
                 };
                 
+                let mut last_result = Value::Null;
+                let mut iteration_count = 0;
+                
                 // 遍历数组的每个元素
                 for item in array {
                     // 设置循环变量
@@ -106,7 +131,7 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                         for stmt in statements {
                             if let Some(obj) = stmt.as_object() {
                                 if let Some((stmt_type, args)) = obj.iter().next() {
-                                    execute_statement(stmt_type, args, context)?;
+                                    last_result = execute_statement(stmt_type, args, context, None)?;
                                 }
                             }
                         }
@@ -115,9 +140,19 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                             "杂鱼~循环体必须是语句数组".to_string()
                         ));
                     }
+                    
+                    iteration_count += 1;
                 }
                 
-                return Ok(());
+                // 构造结果对象
+                let mut result_obj = serde_json::Map::new();
+                result_obj.insert("iterations".to_string(), Value::Number(serde_json::Number::from(iteration_count)));
+                result_obj.insert("last_result".to_string(), last_result);
+                let result = Value::Object(result_obj);
+                
+                // 存储结果并返回
+                store_result_with_compatibility(args, &result, context)?;
+                return Ok(result);
             } else {
                 return Err(InterpreterError::RuntimeError(
                     control_flow::FOR_MISSING_FIELDS.to_string()
@@ -138,6 +173,9 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                     let step = obj.get("step").and_then(|v| get_number_value(v, context)).unwrap_or(1.0);
                     
                     let mut current = start;
+                    let mut last_result = Value::Null;
+                    let mut iteration_count = 0;
+                    
                     // 修改循环条件，包含等于情况
                     while (step > 0.0 && current <= end) || (step < 0.0 && current >= end) {
                         context.set_variable(var_name.to_string(), Value::Number(serde_json::Number::from_f64(current).unwrap()))?;
@@ -146,15 +184,25 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                             for stmt in statements {
                                 if let Some(obj) = stmt.as_object() {
                                     if let Some((stmt_type, args)) = obj.iter().next() {
-                                        execute_statement(stmt_type, args, context)?;
+                                        last_result = execute_statement(stmt_type, args, context, None)?;
                                     }
                                 }
                             }
                         }
                         
                         current += step;
+                        iteration_count += 1;
                     }
-                    Ok(())
+                    
+                    // 构造结果对象
+                    let mut result_obj = serde_json::Map::new();
+                    result_obj.insert("iterations".to_string(), Value::Number(serde_json::Number::from(iteration_count)));
+                    result_obj.insert("last_result".to_string(), last_result);
+                    let result = Value::Object(result_obj);
+                    
+                    // 存储结果并返回
+                    store_result_with_compatibility(args, &result, context)?;
+                    return Ok(result);
                 } else {
                     Err(InterpreterError::RuntimeError(
                         control_flow::FOR_RANGE_INVALID.to_string()
@@ -178,6 +226,9 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                 let step = obj.get("step").and_then(|v| get_number_value(v, context)).unwrap_or(1.0);
                 
                 let mut current = start;
+                let mut last_result = Value::Null;
+                let mut iteration_count = 0;
+                
                 // 修改循环条件，包含等于情况
                 while (step > 0.0 && current <= end) || (step < 0.0 && current >= end) {
                     context.set_variable(var_name.to_string(), Value::Number(serde_json::Number::from_f64(current).unwrap()))?;
@@ -186,15 +237,25 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
                         for stmt in statements {
                             if let Some(obj) = stmt.as_object() {
                                 if let Some((stmt_type, args)) = obj.iter().next() {
-                                    execute_statement(stmt_type, args, context)?;
+                                    last_result = execute_statement(stmt_type, args, context, None)?;
                                 }
                             }
                         }
                     }
                     
                     current += step;
+                    iteration_count += 1;
                 }
-                Ok(())
+                
+                // 构造结果对象
+                let mut result_obj = serde_json::Map::new();
+                result_obj.insert("iterations".to_string(), Value::Number(serde_json::Number::from(iteration_count)));
+                result_obj.insert("last_result".to_string(), last_result);
+                let result = Value::Object(result_obj);
+                
+                // 存储结果并返回
+                store_result_with_compatibility(args, &result, context)?;
+                Ok(result)
             } else {
                 Err(InterpreterError::RuntimeError(
                     control_flow::FOR_MISSING_FIELDS.to_string()
@@ -208,89 +269,72 @@ pub fn execute_for_statement(args: &Value, context: &mut Context) -> Result<()> 
     }
 }
 
-// execute_switch_statement - 执行switch分支语句
-pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<()> {
+// execute_switch_statement - 执行switch语句
+pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
-        if let (Some(expr), Some(cases)) = (obj.get("expr"), obj.get("cases")) {
-            let expr_value = context.resolve_value(expr);
+        if let (Some(value_expr), Some(cases)) = (obj.get("value"), obj.get("cases")) {
+            // 获取要匹配的值
+            let value = context.resolve_value(value_expr);
+            let value_num_result = value.parse::<f64>();
+            
+            let mut executed = false;
+            let mut last_result = Value::Null;
             
             if let Some(cases_array) = cases.as_array() {
-                let mut default_case = None;
-                let mut match_found = false;
-                
                 // 遍历所有case
                 for case in cases_array {
                     if let Some(case_obj) = case.as_object() {
-                        // 检查是否是default case
-                        if case_obj.contains_key("default") {
-                            default_case = case_obj.get("body");
-                            continue;
-                        }
-                        
-                        // 正常case处理
-                        if let (Some(value), Some(body)) = (case_obj.get("value"), case_obj.get("body")) {
-                            let case_value = context.resolve_value(value);
+                        if let (Some(case_value), Some(statements)) = (case_obj.get("case"), case_obj.get("do")) {
+                            let case_val = context.resolve_value(case_value);
+                            let case_num = case_val.parse::<f64>();
                             
-                            // 如果case值匹配
-                            if case_value == expr_value {
-                                match_found = true;
-                                
-                                // 执行case的语句体
-                                if let Some(statements) = body.as_array() {
-                                    for stmt in statements {
+                            // 改为使用value_num_result的引用，避免所有权移动
+                            let is_match = match (&value_num_result, &case_num) {
+                                (Ok(v), Ok(c)) => (v - c).abs() < std::f64::EPSILON,
+                                _ => value == case_val
+                            };
+                            
+                            if is_match {
+                                executed = true;
+                                // 执行匹配的case
+                                if let Some(statements_array) = statements.as_array() {
+                                    for stmt in statements_array {
                                         if let Some(obj) = stmt.as_object() {
                                             if let Some((stmt_type, args)) = obj.iter().next() {
-                                                execute_statement(stmt_type, args, context)?;
+                                                last_result = execute_statement(stmt_type, args, context, None)?;
                                             }
                                         }
                                     }
-                                } else {
-                                    return Err(InterpreterError::RuntimeError(
-                                        switch::CASE_BODY_NOT_ARRAY.to_string()
-                                    ));
                                 }
-                                
-                                // 检查是否需要break（默认行为是break）
-                                if !case_obj.contains_key("fallthrough") || 
-                                   !case_obj.get("fallthrough").unwrap().as_bool().unwrap_or(false) {
                                     break;
-                                }
                             }
-                        } else {
-                            return Err(InterpreterError::RuntimeError(
-                                switch::CASE_MISSING_FIELDS.to_string()
-                            ));
                         }
-                    } else {
-                        return Err(InterpreterError::RuntimeError(
-                            switch::CASE_NOT_OBJ.to_string()
-                        ));
                     }
                 }
                 
-                // 如果没有匹配的case但有默认case，执行默认case
-                if !match_found && default_case.is_some() {
-                    if let Some(statements) = default_case.unwrap().as_array() {
+                // 如果没有匹配的case，尝试执行default
+                if !executed {
+                    if let Some(default_block) = obj.get("default") {
+                        if let Some(statements) = default_block.as_array() {
                         for stmt in statements {
                             if let Some(obj) = stmt.as_object() {
                                 if let Some((stmt_type, args)) = obj.iter().next() {
-                                    execute_statement(stmt_type, args, context)?;
+                                        last_result = execute_statement(stmt_type, args, context, None)?;
+                                    }
                                 }
                             }
                         }
-                    } else {
-                        return Err(InterpreterError::RuntimeError(
-                            switch::DEFAULT_BODY_NOT_ARRAY.to_string()
-                        ));
                     }
                 }
-                
-                Ok(())
             } else {
-                Err(InterpreterError::RuntimeError(
+                return Err(InterpreterError::RuntimeError(
                     switch::CASES_NOT_ARRAY.to_string()
-                ))
+                ));
             }
+            
+            // 存储结果并返回
+            store_result_with_compatibility(args, &last_result, context)?;
+            Ok(last_result)
         } else {
             Err(InterpreterError::RuntimeError(
                 switch::MISSING_EXPR_OR_CASES.to_string()
@@ -303,98 +347,72 @@ pub fn execute_switch_statement(args: &Value, context: &mut Context) -> Result<(
     }
 }
 
-// execute_try_statement - 执行try-catch错误处理语句
-pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<()> {
+// execute_try_statement - 执行try-catch语句
+pub fn execute_try_statement(args: &Value, context: &mut Context) -> Result<Value> {
     if let Some(obj) = args.as_object() {
-        // 检查必要字段
-        let try_body = obj.get("try").ok_or_else(|| {
-            InterpreterError::RuntimeError(try_catch::MISSING_FIELDS.to_string())
-        })?;
-        
-        let catch_body = obj.get("catch").ok_or_else(|| {
-            InterpreterError::RuntimeError(try_catch::MISSING_FIELDS.to_string())
-        })?;
-        
-        // 验证try块是数组
-        let try_statements = try_body.as_array().ok_or_else(|| {
-            InterpreterError::RuntimeError(try_catch::TRY_BODY_NOT_ARRAY.to_string())
-        })?;
-        
-        // 验证catch块是数组
-        let catch_statements = catch_body.as_array().ok_or_else(|| {
-            InterpreterError::RuntimeError(try_catch::CATCH_BODY_NOT_ARRAY.to_string())
-        })?;
-        
-        // 获取错误变量名（可选）
-        let error_var = if let Some(var) = obj.get("error_var") {
-            if let Some(var_name) = var.as_str() {
-                Some(var_name.to_string())
-            } else {
-                return Err(InterpreterError::RuntimeError(
-                    try_catch::ERROR_VAR_NOT_STRING.to_string()
-                ));
-            }
-        } else {
-            None
-        };
+        if let (Some(try_block), Some(catch_block)) = (obj.get("try"), obj.get("catch")) {
+            let error_var = obj.get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("error");
         
         // 执行try块
-        let mut error_caught = false;
-        let mut error_message = String::new();
+            let mut result = Value::Null;
+            let mut had_error = false;
         
-        // 尝试执行try块中的语句
-        for stmt in try_statements {
+            if let Some(statements) = try_block.as_array() {
+                for stmt in statements {
             if let Some(obj) = stmt.as_object() {
                 if let Some((stmt_type, args)) = obj.iter().next() {
-                    match execute_statement(stmt_type, args, context) {
-                        Ok(_) => {},
+                    match execute_statement(stmt_type, args, context, None) {
+                                Ok(res) => result = res,
                         Err(e) => {
-                            // 捕获错误
-                            error_caught = true;
-                            error_message = format!("{}", e);
+                                    // 捕获错误，存储错误信息
+                                    let error_msg = match &e {
+                                        InterpreterError::RuntimeError(msg) => msg.clone(),
+                                        InterpreterError::FunctionError(msg) => msg.clone(),
+                                        InterpreterError::ModuleError(msg) => msg.clone(),
+                                        InterpreterError::InvalidProgramStructure(msg) => msg.clone(),
+                                        InterpreterError::VariableError(msg) => msg.clone(),
+                                    };
+                                    
+                                    // 设置错误变量
+                                    context.set_variable(error_var.to_string(), Value::String(error_msg))?;
+                                    had_error = true;
                             break;
                         }
                     }
                 }
             }
         }
-        
-        // 如果捕获到错误，执行catch块
-        if error_caught {
-            // 如果指定了错误变量名，将错误信息存储到该变量
-            if let Some(var_name) = error_var {
-                context.set_variable(var_name, Value::String(error_message))?;
             }
             
-            // 执行catch块
-            for stmt in catch_statements {
+            // 如果有错误，执行catch块
+            if had_error {
+                if let Some(statements) = catch_block.as_array() {
+                    for stmt in statements {
                 if let Some(obj) = stmt.as_object() {
                     if let Some((stmt_type, args)) = obj.iter().next() {
-                        execute_statement(stmt_type, args, context)?;
-                    }
-                }
-            }
-        }
-        
-        // 检查是否有finally块
-        if let Some(finally_body) = obj.get("finally") {
-            if let Some(finally_statements) = finally_body.as_array() {
-                // 无论try或catch块的执行结果如何，都执行finally块
-                for stmt in finally_statements {
-                    if let Some(obj) = stmt.as_object() {
-                        if let Some((stmt_type, args)) = obj.iter().next() {
-                            execute_statement(stmt_type, args, context)?;
+                                result = execute_statement(stmt_type, args, context, None)?;
+                            }
                         }
                     }
                 }
-            } else {
-                return Err(InterpreterError::RuntimeError(
-                    try_catch::FINALLY_BODY_NOT_ARRAY.to_string()
-                ));
             }
+            
+            // 构造结果对象
+            let mut result_obj = serde_json::Map::new();
+            result_obj.insert("had_error".to_string(), Value::Bool(had_error));
+            result_obj.insert("result".to_string(), result.clone());
+            let final_result = Value::Object(result_obj);
+            
+            // 存储结果并返回
+            store_result_with_compatibility(args, &final_result, context)?;
+            Ok(final_result)
+        } else {
+            Err(InterpreterError::RuntimeError(
+                try_catch::MISSING_FIELDS.to_string()
+            ))
         }
-        
-        Ok(())
     } else {
         Err(InterpreterError::RuntimeError(
             try_catch::ARGS_NOT_OBJ.to_string()

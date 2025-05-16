@@ -17,7 +17,7 @@
                 {"utils.count": [1, 5]},
                 
                 {"echo": ["\n4. 使用简化语法写入文件：\n"]},
-                {"var": {"output_file": "@var.filename", "content": "这是通过简化语法写入的内容"}},
+                {"var": {"output_file": "中文文件名.txt", "content": "这是通过简化语法写入的内容"}},
                 {"io.write_file": ["@var.output_file", "@var.content"]},
                 {"echo": ["文件写入结果：", "@var.result", "\n"]},
                 
