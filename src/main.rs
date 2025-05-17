@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::env;
 use std::fs;
 use interpreter::Interpreter;
-use modules::{get_module, get_registry, get_registry_mut};
+use modules::{load_module, get_registry, get_registry_mut};
 use std::path::Path;
 use dotenv::dotenv;
 use crate::modules::lua_module;
@@ -270,7 +270,7 @@ fn main() {
     if let Some(include_array) = program.get("include").and_then(|v| v.as_array()) {
         for module_name in include_array {
             if let Some(name) = module_name.as_str() {
-                if let Some(module) = get_module(name) {
+                if let Some(module) = load_module(name) {
                     modules.push(module);
                 } else {
                     let error_msg = format!("未找到模块 '{}'。您能凭空变出这个模块吗？", name);
