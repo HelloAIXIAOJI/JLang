@@ -4,6 +4,7 @@ use super::super::error::{InterpreterError, Result};
 use super::super::error::error_messages::statement;
 use super::super::variable_reference::{VariableReference, ReferenceType};
 use crate::is_debug_mode;
+use crate::is_print_full_values;
 use super::store_result_with_compatibility;
 
 // 执行var语句 - 变量定义
@@ -211,7 +212,152 @@ pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<Val
         let mut output = String::new();
         for part in parts {
             // 使用可能抛出错误的版本处理变量引用
-            let text = context.resolve_value_with_error(part)?;
+            let text = if let Some(s) = part.as_str() {
+                if s.contains("@var.") || s.contains("@param.") {
+                    // 处理包含变量引用的字符串
+                    let mut result = String::new();
+                    let mut start = 0;
+                    
+                    // 查找并替换字符串中的所有变量引用
+                    while let Some(ref_start) = s[start..].find('@') {
+                        // 添加变量引用之前的文本
+                        result.push_str(&s[start..start + ref_start]);
+                        
+                        // 确定变量引用的起始位置
+                        let abs_ref_start = start + ref_start;
+                        
+                        // 查找变量引用的结束位置
+                        let mut ref_end = abs_ref_start;
+                        let mut dot_found = false;
+                        
+                        // 扫描完整的变量引用（@var.xxx或@param.xxx格式）
+                        for (i, c) in s[abs_ref_start..].char_indices() {
+                            let current_pos = abs_ref_start + i;
+                            
+                            // 如果还没找到点，检查前缀部分（@var或@param）
+                            if !dot_found {
+                                if c == '.' {
+                                    dot_found = true;
+                                    ref_end = current_pos + 1; // 包含点
+                                    continue;
+                                }
+                                
+                                if current_pos - abs_ref_start < 5 && (c == '@' || c.is_alphabetic()) {
+                                    ref_end = current_pos + 1;
+                                    continue;
+                                }
+                                
+                                // 无效的变量引用前缀
+                                break;
+                            } else {
+                                // 点之后是变量名部分，可以包含字母、数字、下划线
+                                if c.is_alphanumeric() || c == '_' {
+                                    ref_end = current_pos + 1;
+                                    continue;
+                                }
+                                
+                                // 遇到非法字符，变量名结束
+                                break;
+                            }
+                        }
+                        
+                        // 提取完整的变量引用
+                        let var_ref = &s[abs_ref_start..ref_end];
+                        
+                        if crate::is_debug_mode() {
+                            println!("处理嵌入式变量引用: {}", var_ref);
+                        }
+                        
+                        // 如果变量引用合法，解析并添加其值
+                        if VariableReference::is_reference(var_ref) {
+                            if crate::is_debug_mode() {
+                                println!("有效的变量引用: {}", var_ref);
+                            }
+                            
+                            let ref_obj = VariableReference::parse(var_ref);
+                            
+                            if crate::is_debug_mode() {
+                                println!("解析为: {:?}, 名称: {}", ref_obj.ref_type, ref_obj.name);
+                            }
+                            
+                            // 直接获取变量值
+                            if let Some(value) = context.get_value(var_ref) {
+                                if crate::is_debug_mode() {
+                                    println!("变量值: {:?}", value);
+                                }
+                                
+                                // 根据值类型进行格式化
+                                match value {
+                                    Value::String(s) => result.push_str(&s),
+                                    Value::Number(n) => result.push_str(&n.to_string()),
+                                    Value::Bool(b) => result.push_str(&b.to_string()),
+                                    Value::Null => result.push_str("null"),
+                                    Value::Array(arr) => {
+                                        if crate::is_print_full_values() {
+                                            // 完整显示数组内容
+                                            let mut arr_str = String::new();
+                                            arr_str.push('[');
+                                            for (i, item) in arr.iter().enumerate() {
+                                                if i > 0 {
+                                                    arr_str.push_str(", ");
+                                                }
+                                                arr_str.push_str(&context.resolve_value(item));
+                                            }
+                                            arr_str.push(']');
+                                            result.push_str(&arr_str);
+                                        } else {
+                                            result.push_str("<array>");
+                                        }
+                                    },
+                                    Value::Object(obj) => {
+                                        if crate::is_print_full_values() {
+                                            // 完整显示对象内容
+                                            let mut obj_str = String::new();
+                                            obj_str.push('{');
+                                            for (i, (key, val)) in obj.iter().enumerate() {
+                                                if i > 0 {
+                                                    obj_str.push_str(", ");
+                                                }
+                                                obj_str.push_str(&format!("\"{}\": {}", key, context.resolve_value(val)));
+                                            }
+                                            obj_str.push('}');
+                                            result.push_str(&obj_str);
+                                        } else {
+                                            result.push_str("<object>");
+                                        }
+                                    },
+                                }
+                            } else {
+                                // 变量不存在，保留原始文本
+                                if crate::is_debug_mode() {
+                                    println!("变量未找到，保留原始引用");
+                                }
+                                result.push_str(var_ref);
+                            }
+                        } else {
+                            // 不是合法的变量引用，保留原始文本
+                            result.push_str(var_ref);
+                        }
+                        
+                        // 更新起始位置
+                        start = ref_end;
+                    }
+                    
+                    // 添加剩余文本
+                    if start < s.len() {
+                        result.push_str(&s[start..]);
+                    }
+                    
+                    result
+                } else {
+                    // 不包含变量引用的普通字符串
+                    s.to_string()
+                }
+            } else {
+                // 非字符串类型，使用正常的解析方法
+                context.resolve_value_with_error(part)?
+            };
+            
             output.push_str(&text);
             print!("{}", text);
         }
@@ -225,7 +371,7 @@ pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<Val
     }
     
     // 处理对象格式（包含output参数）
-    if let Some(obj) = args.as_object() {
+        if let Some(obj) = args.as_object() {
         let mut parts = Vec::new();
         let mut i = 0;
         
@@ -244,7 +390,112 @@ pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<Val
         // 处理parts数组
         let mut output = String::new();
         for part in parts {
-            let text = context.resolve_value_with_error(&part)?;
+            let text = if let Some(s) = part.as_str() {
+                if s.contains("@var.") || s.contains("@param.") {
+                    // 处理包含变量引用的字符串，使用与上面相同的逻辑
+                    let mut result = String::new();
+                    let mut start = 0;
+                    
+                    while let Some(ref_start) = s[start..].find('@') {
+                        result.push_str(&s[start..start + ref_start]);
+                        
+                        let abs_ref_start = start + ref_start;
+                        let mut ref_end = abs_ref_start;
+                        let mut dot_found = false;
+                        
+                        // 扫描完整的变量引用（使用相同的逻辑）
+                        for (i, c) in s[abs_ref_start..].char_indices() {
+                            let current_pos = abs_ref_start + i;
+                            
+                            if !dot_found {
+                                if c == '.' {
+                                    dot_found = true;
+                                    ref_end = current_pos + 1;
+                                    continue;
+                                }
+                                
+                                if current_pos - abs_ref_start < 5 && (c == '@' || c.is_alphabetic()) {
+                                    ref_end = current_pos + 1;
+                                    continue;
+                                }
+                                
+                                break;
+                            } else {
+                                if c.is_alphanumeric() || c == '_' {
+                                    ref_end = current_pos + 1;
+                                    continue;
+                                }
+                                
+                                break;
+                            }
+                        }
+                        
+                        let var_ref = &s[abs_ref_start..ref_end];
+                        
+                        if VariableReference::is_reference(var_ref) {
+                            if let Some(value) = context.get_value(var_ref) {
+                                match value {
+                                    Value::String(s) => result.push_str(&s),
+                                    Value::Number(n) => result.push_str(&n.to_string()),
+                                    Value::Bool(b) => result.push_str(&b.to_string()),
+                                    Value::Null => result.push_str("null"),
+                                    Value::Array(arr) => {
+                                        if crate::is_print_full_values() {
+                                            // 完整显示数组内容
+                                            let mut arr_str = String::new();
+                                            arr_str.push('[');
+                                            for (i, item) in arr.iter().enumerate() {
+                                                if i > 0 {
+                                                    arr_str.push_str(", ");
+                                                }
+                                                arr_str.push_str(&context.resolve_value(item));
+            }
+                                            arr_str.push(']');
+                                            result.push_str(&arr_str);
+                                        } else {
+                                            result.push_str("<array>");
+                                        }
+                                    },
+                                    Value::Object(obj) => {
+                                        if crate::is_print_full_values() {
+                                            // 完整显示对象内容
+                                            let mut obj_str = String::new();
+                                            obj_str.push('{');
+                                            for (i, (key, val)) in obj.iter().enumerate() {
+                                                if i > 0 {
+                                                    obj_str.push_str(", ");
+                                                }
+                                                obj_str.push_str(&format!("\"{}\": {}", key, context.resolve_value(val)));
+                                            }
+                                            obj_str.push('}');
+                                            result.push_str(&obj_str);
+                                        } else {
+                                            result.push_str("<object>");
+                                        }
+                                    },
+                                }
+                            } else {
+                                result.push_str(var_ref);
+                            }
+                        } else {
+                            result.push_str(var_ref);
+                        }
+                        
+                        start = ref_end;
+                    }
+                    
+                    if start < s.len() {
+                        result.push_str(&s[start..]);
+                    }
+                    
+                    result
+                } else {
+                    s.to_string()
+                }
+            } else {
+                context.resolve_value_with_error(&part)?
+            };
+            
             output.push_str(&text);
             print!("{}", text);
         }
@@ -266,9 +517,9 @@ pub fn execute_echo_statement(args: &Value, context: &mut Context) -> Result<Val
     }
     
     // 既不是数组也不是对象，返回错误
-    Err(InterpreterError::RuntimeError(
-        statement::param_must_be_array("echo")
-    ))
+        Err(InterpreterError::RuntimeError(
+            statement::param_must_be_array("echo")
+        ))
 }
 
 // 执行concat语句 - 字符串拼接
@@ -513,4 +764,83 @@ pub fn execute_comment_statement(args: &Value, context: &mut Context) -> Result<
         }
     }
     Ok(result)
+}
+
+// 执行return语句 - 从函数返回值
+pub fn execute_return_statement(args: &Value, context: &mut Context) -> Result<Value> {
+    // 解析return的值 - 可以是任何类型
+    let return_value = if let Some(text) = args.as_str() {
+        if VariableReference::is_reference(text) {
+            // 变量引用
+            let var_ref = VariableReference::parse(text);
+            var_ref.resolve_value(&context.variables, &context.constants)
+        } else {
+            // 普通字符串
+            Value::String(text.to_string())
+        }
+    } else if let Some(obj) = args.as_object() {
+        // 检查是否是函数调用（单键对象）
+        if obj.len() == 1 {
+            let (func_type, func_args) = obj.iter().next().unwrap();
+            
+            // 模块函数调用
+            if func_type.contains('.') {
+                let parts: Vec<&str> = func_type.split('.').collect();
+                if parts.len() == 2 {
+                    let module_name = parts[0];
+                    let function_name = parts[1];
+                    
+                    // 解析函数参数
+                    let args_list = match func_args {
+                        Value::Array(arr) => arr.clone(),
+                        _ => vec![func_args.clone()],
+                    };
+                    
+                    // 调用模块函数并返回结果
+                    match context.call_module_function(module_name, function_name, &args_list) {
+                        Ok(result) => result,
+                        Err(e) => {
+                            // 如果函数调用失败，作为普通对象处理
+                            if is_debug_mode() {
+                                println!("Return中的函数调用失败: {}", e);
+                            }
+                            args.clone()
+                        }
+                    }
+                } else {
+                    // 不是有效的模块函数调用
+                    args.clone()
+                }
+            } else if super::is_builtin_statement(func_type) {
+                // 内置语句
+                match super::execute_statement(func_type, func_args, context, Some(args)) {
+                    Ok(result) => result,
+                    Err(_) => args.clone() // 如果执行失败，返回原始参数
+                }
+            } else if let Some(program_obj) = context.program.get("program") {
+                // 自定义函数
+                if program_obj.get(func_type).is_some() {
+                    match super::execute_statement(func_type, func_args, context, Some(args)) {
+                        Ok(result) => result,
+                        Err(_) => args.clone()
+                    }
+                } else {
+                    args.clone()
+                }
+            } else {
+                args.clone()
+            }
+        } else {
+            args.clone()
+        }
+    } else {
+        // 值类型（数字、布尔、null、数组）直接返回
+        args.clone()
+    };
+    
+    // 设置函数的返回值状态
+    context.set_return_value(Some(return_value.clone()));
+    
+    // 返回处理后的值
+    Ok(return_value)
 } 

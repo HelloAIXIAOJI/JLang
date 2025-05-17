@@ -32,6 +32,17 @@ Math模块提供以下核心功能：
 | pow | 计算一个数的幂 |
 | sqrt | 计算平方根 |
 | round | 四舍五入到最接近的整数 |
+| abs | 计算绝对值 |
+| sin | 计算正弦值（角度制） |
+| cos | 计算余弦值（角度制） |
+| tan | 计算正切值（角度制） |
+| log | 计算以10为底的对数 |
+| ln | 计算自然对数（以e为底） |
+| max | 计算最大值 |
+| min | 计算最小值 |
+| floor | 向下取整 |
+| ceil | 向上取整 |
+| random | 生成随机数 |
 
 ### add
 
@@ -252,11 +263,10 @@ Math模块提供以下核心功能：
   "program": {
     "main": {
       "body": [
-        {"math.round": [4.3], "output": "round_down"},
-        {"echo": ["4.3四舍五入 = ", "@var.round_down"]},
-        
-        {"math.round": [4.7], "output": "round_up"},
-        {"echo": ["4.7四舍五入 = ", "@var.round_up"]}
+        {"math.round": [3.7], "output": "result1"},
+        {"echo": ["3.7四舍五入 = ", "@var.result1"]},
+        {"math.round": [3.2], "output": "result2"},
+        {"echo": ["3.2四舍五入 = ", "@var.result2"]}
       ]
     }
   }
@@ -268,22 +278,411 @@ Math模块提供以下核心功能：
 - 如果参数不足，返回0
 - 非数值参数会尝试转换为数值
 
+### abs
+
+#### 描述
+计算一个数的绝对值。
+
+#### 参数
+- **value**: 要计算绝对值的数
+
+#### 返回值
+参数的绝对值。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.abs": [-42], "output": "result"},
+        {"echo": ["-42的绝对值 = ", "@var.result"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+
+### sin
+
+#### 描述
+计算角度的正弦值（使用角度制，而非弧度制）。
+
+#### 参数
+- **degrees**: 角度值（以度为单位）
+
+#### 返回值
+指定角度的正弦值。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.sin": [30], "output": "result"},
+        {"echo": ["30度的正弦值 = ", "@var.result"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 内部会将角度转换为弧度后计算
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+
+### cos
+
+#### 描述
+计算角度的余弦值（使用角度制，而非弧度制）。
+
+#### 参数
+- **degrees**: 角度值（以度为单位）
+
+#### 返回值
+指定角度的余弦值。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.cos": [60], "output": "result"},
+        {"echo": ["60度的余弦值 = ", "@var.result"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 内部会将角度转换为弧度后计算
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+
+### tan
+
+#### 描述
+计算角度的正切值（使用角度制，而非弧度制）。
+
+#### 参数
+- **degrees**: 角度值（以度为单位）
+
+#### 返回值
+指定角度的正切值。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.tan": [45], "output": "result"},
+        {"echo": ["45度的正切值 = ", "@var.result"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 内部会将角度转换为弧度后计算
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+- 90度（以及270度、450度等）会导致无穷大的结果
+
+### log
+
+#### 描述
+计算以10为底的对数。
+
+#### 参数
+- **value**: 要计算对数的正数
+
+#### 返回值
+参数的以10为底的对数。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.log": [100], "output": "result"},
+        {"echo": ["log10(100) = ", "@var.result"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 参数必须为正数，否则会产生错误
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+
+### ln
+
+#### 描述
+计算自然对数（以e为底的对数）。
+
+#### 参数
+- **value**: 要计算自然对数的正数
+
+#### 返回值
+参数的自然对数值。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"var": {"e": 2.718281828459045}},
+        {"math.ln": "@var.e", "output": "result"},
+        {"echo": ["ln(e) = ", "@var.result"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 参数必须为正数，否则会产生错误
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+
+### max
+
+#### 描述
+计算一组数值的最大值。
+
+#### 参数
+- 任意数量的数值参数，或者一个数值数组
+
+#### 返回值
+所有参数中的最大值。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.max": [10, 5, 20, 15], "output": "result1"},
+        {"echo": ["最大值 = ", "@var.result1"]},
+        
+        {"var": {"numbers": [3, 8, 1, 6, 2]}},
+        {"math.max": "@var.numbers", "output": "result2"},
+        {"echo": ["数组最大值 = ", "@var.result2"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 如果第一个参数是数组，会计算数组中的最大值
+- 如果参数是变量引用且指向数组，也会计算该数组的最大值
+- 如果参数为空，返回0
+- 非数值参数会尝试转换为数值
+
+### min
+
+#### 描述
+计算一组数值的最小值。
+
+#### 参数
+- 任意数量的数值参数，或者一个数值数组
+
+#### 返回值
+所有参数中的最小值。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.min": [10, 5, 20, 15], "output": "result1"},
+        {"echo": ["最小值 = ", "@var.result1"]},
+        
+        {"var": {"numbers": [3, 8, 1, 6, 2]}},
+        {"math.min": "@var.numbers", "output": "result2"},
+        {"echo": ["数组最小值 = ", "@var.result2"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 如果第一个参数是数组，会计算数组中的最小值
+- 如果参数是变量引用且指向数组，也会计算该数组的最小值
+- 如果参数为空，返回0
+- 非数值参数会尝试转换为数值
+
+### floor
+
+#### 描述
+向下取整，即取不大于给定数值的最大整数。
+
+#### 参数
+- **value**: 要向下取整的数值
+
+#### 返回值
+不大于参数的最大整数。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.floor": [7.8], "output": "result1"},
+        {"echo": ["floor(7.8) = ", "@var.result1"]},
+        
+        {"math.floor": [-3.2], "output": "result2"},
+        {"echo": ["floor(-3.2) = ", "@var.result2"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 对于负数，向下取整会得到更小的数（例如，floor(-3.2) = -4）
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+
+### ceil
+
+#### 描述
+向上取整，即取不小于给定数值的最小整数。
+
+#### 参数
+- **value**: 要向上取整的数值
+
+#### 返回值
+不小于参数的最小整数。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.ceil": [7.8], "output": "result1"},
+        {"echo": ["ceil(7.8) = ", "@var.result1"]},
+        
+        {"math.ceil": [-3.2], "output": "result2"},
+        {"echo": ["ceil(-3.2) = ", "@var.result2"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 对于负数，向上取整会得到更大的数（例如，ceil(-3.2) = -3）
+- 如果参数不足，返回0
+- 非数值参数会尝试转换为数值
+
+### random
+
+#### 描述
+生成随机数。
+
+#### 参数
+- 无参数：生成0到1之间的随机数
+- 一个参数 **max**：生成0到max之间的随机数
+- 两个参数 **min**, **max**：生成min到max之间的随机数
+
+#### 返回值
+指定范围内的随机浮点数。
+
+#### 示例
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"math.random": [], "output": "result1"},
+        {"echo": ["0到1之间的随机数: ", "@var.result1"]},
+        
+        {"math.random": [100], "output": "result2"},
+        {"echo": ["0到100之间的随机数: ", "@var.result2"]},
+        
+        {"math.random": [50, 100], "output": "result3"},
+        {"echo": ["50到100之间的随机数: ", "@var.result3"]}
+      ]
+    }
+  }
+}
+```
+
+#### 特殊处理
+
+- 如果指定了min和max，但min大于等于max，会产生错误
+- 生成的随机数是浮点数，包括下限但不包括上限
+- 非数值参数会尝试转换为数值
+
 ## 类型转换
 
-Math模块中的所有函数都会尝试将输入参数转换为数值：
+Math模块中的函数会尝试将输入参数转换为数值，遵循以下规则：
 
-1. **数字**：直接使用
-2. **字符串**：尝试解析为数字
-   - 如果字符串可以直接解析为数字，使用解析结果
-   - 如果字符串包含数字和非数字字符（如 "10px"），会尝试提取数字部分
-3. **布尔值**：true转换为1，false转换为0
-4. **空数组或空对象**：转换为0
-5. **null**：转换为0
-6. **变量引用**：先解析变量，再按上述规则转换
+1. **数值类型**：直接使用
+2. **字符串类型**：
+   - 尝试将整个字符串解析为数字
+   - 如果失败，尝试从字符串中提取数字部分
+   - 如果字符串是变量引用，先解析引用再转换
+3. **布尔类型**：true转换为1.0，false转换为0.0
+4. **null类型**：转换为0.0
+5. **空数组/空对象**：转换为0.0
+6. **非空数组/非空对象**：通常不能直接转换，但某些函数(如max/min)有特殊处理
 
-## 组合使用示例
+## 函数组合
 
-### 计算圆的面积
+Math模块的函数可以组合使用来完成复杂计算。例如，计算圆的面积：
 
 ```json
 {
@@ -291,80 +690,10 @@ Math模块中的所有函数都会尝试将输入参数转换为数值：
   "program": {
     "main": {
       "body": [
-        {"var": {"PI": 3.14159}},
         {"var": {"radius": 5}},
-        
-        {"comment": "计算面积：PI * radius^2"},
         {"math.pow": ["@var.radius", 2], "output": "radius_squared"},
-        {"math.multiply": ["@var.PI", "@var.radius_squared"], "output": "area"},
-        
-        {"echo": ["半径为", "@var.radius", "的圆的面积是: ", "@var.area"]}
-      ]
-    }
-  }
-}
-```
-
-### 综合计算示例
-
-```json
-{
-  "include": ["math", "io"],
-  "program": {
-    "main": {
-      "body": [
-        {"echo": ["数学计算示例\n"]},
-        
-        {"io.input": ["请输入一个数字: "], "output": "input_number"},
-        
-        {"comment": "计算各种数学运算结果"},
-        {"math.sqrt": ["@var.input_number"], "output": "sqrt_result"},
-        {"math.pow": ["@var.input_number", 2], "output": "square_result"},
-        {"math.pow": ["@var.input_number", 3], "output": "cube_result"},
-        
-        {"echo": ["\n计算结果:"]},
-        {"echo": ["原始数字: ", "@var.input_number"]},
-        {"echo": ["平方根: ", "@var.sqrt_result"]},
-        {"echo": ["平方: ", "@var.square_result"]},
-        {"echo": ["立方: ", "@var.cube_result"]}
-      ]
-    }
-  }
-}
-```
-
-## 自定义数学函数
-
-可以通过组合Math模块的基础函数创建更复杂的数学功能：
-
-### 示例：平均值计算
-
-```json
-{
-  "include": ["math"],
-  "program": {
-    "calculate_average": {
-      "params": {
-        "numbers": "array"
-      },
-      "body": [
-        {"var": {"sum": 0, "count": 0}},
-        {"for": {
-          "var": "num",
-          "in": "@params.numbers",
-          "body": [
-            {"var": {"sum": {"math.add": ["@var.sum", "@var.num"]}}},
-            {"var": {"count": {"math.add": ["@var.count", 1]}}}
-          ]
-        }},
-        {"var": {"result": {"math.divide": ["@var.sum", "@var.count"]}}}
-      ]
-    },
-    "main": {
-      "body": [
-        {"var": {"data": [10, 20, 30, 40, 50]}},
-        {"calculate_average": ["@var.data"], "output": "avg"},
-        {"echo": ["平均值: ", "@var.avg"]}
+        {"math.multiply": ["@var.radius_squared", 3.14159], "output": "area"},
+        {"echo": ["半径为5的圆面积 = ", "@var.area"]}
       ]
     }
   }
@@ -373,14 +702,62 @@ Math模块中的所有函数都会尝试将输入参数转换为数值：
 
 ## 最佳实践
 
-1. **类型检查**：虽然Math模块会尝试自动转换类型，但应该尽量传入正确的数值类型
-2. **错误处理**：特别注意处理除零错误，确保除法操作的除数不为零
-3. **精度考虑**：JiLang使用浮点数进行计算，可能会有精度损失，特别是在处理非常大或非常小的数字时
-4. **组合函数**：对于复杂的数学计算，可以自定义函数将基本操作组合起来
+使用Math模块时，可以参考以下最佳实践：
 
-## 限制与注意事项
+1. **类型检查**：虽然Math模块会尝试转换输入数据类型，但最好传入正确的数值类型
+2. **错误处理**：注意特殊情况如除以零、负数的平方根等
+3. **变量引用**：使用变量引用可以更方便地进行多步骤计算
+4. **精度考虑**：浮点数计算可能有小的精度误差，特别是处理小数位多的情况
+5. **组合函数**：组合使用多个Math函数完成复杂计算
 
-1. 所有计算都使用双精度浮点数，可能有精度限制
-2. 对于非常大或非常小的数字，可能会出现精度问题或溢出
-3. Math模块还可能添加更多的数学函数，查看最新文档以获取完整列表
-4. 在处理用户输入时，应始终验证是否可以成功转换为数值 
+## 示例程序
+
+这里有一个使用Math模块的示例程序，展示了各种数学函数的用法：
+
+```json
+{
+  "include": ["math"],
+  "program": {
+    "main": {
+      "body": [
+        {"echo": ["===== Math模块功能演示 =====", "\n"]},
+        
+        {"var": {"a": 10, "b": 5}},
+        {"echo": ["基础运算:", "\n"]},
+        {"math.add": ["@var.a", "@var.b"], "output": "sum"},
+        {"echo": ["  ", "@var.a", " + ", "@var.b", " = ", "@var.sum", "\n"]},
+        
+        {"math.subtract": ["@var.a", "@var.b"], "output": "diff"},
+        {"echo": ["  ", "@var.a", " - ", "@var.b", " = ", "@var.diff", "\n"]},
+        
+        {"math.multiply": ["@var.a", "@var.b"], "output": "product"},
+        {"echo": ["  ", "@var.a", " * ", "@var.b", " = ", "@var.product", "\n"]},
+        
+        {"math.divide": ["@var.a", "@var.b"], "output": "quotient"},
+        {"echo": ["  ", "@var.a", " / ", "@var.b", " = ", "@var.quotient", "\n"]},
+        
+        {"echo": ["\n高级函数:", "\n"]},
+        {"math.pow": ["@var.a", 2], "output": "power"},
+        {"echo": ["  ", "@var.a", "的平方 = ", "@var.power", "\n"]},
+        
+        {"math.sqrt": ["@var.power"], "output": "sqrt_result"},
+        {"echo": ["  ", "@var.power", "的平方根 = ", "@var.sqrt_result", "\n"]},
+        
+        {"var": {"numbers": [3, 8, 1, 6, 2]}},
+        {"math.max": "@var.numbers", "output": "max_value"},
+        {"math.min": "@var.numbers", "output": "min_value"},
+        {"echo": ["  数组最大值: ", "@var.max_value", ", 最小值: ", "@var.min_value", "\n"]},
+        
+        {"var": {"angle": 45}},
+        {"math.sin": "@var.angle", "output": "sin_value"},
+        {"echo": ["  ", "@var.angle", "度的正弦值 = ", "@var.sin_value", "\n"]},
+        
+        {"math.random": [1, 100], "output": "random_value"},
+        {"echo": ["  生成1到100的随机数: ", "@var.random_value", "\n"]},
+        
+        {"echo": ["===== 演示结束 =====", "\n"]}
+      ]
+    }
+  }
+}
+``` 

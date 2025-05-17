@@ -6,6 +6,14 @@ use super::error::{InterpreterError, Result};
 use super::error::error_messages::context as error_msg;
 use super::variable_reference::{VariableReference, ReferenceType};
 use crate::is_print_full_values;  // 导入新函数
+use std::collections::BTreeMap;
+
+// 上下文选项结构体
+#[derive(Debug, Clone, Default)]
+pub struct ContextOptions {
+    pub debug_mode: bool,
+    pub include_stack_trace: bool,
+}
 
 pub struct Context {
     pub variables: HashMap<String, Value>,
@@ -13,6 +21,10 @@ pub struct Context {
     pub program: Value,
     pub modules: HashMap<String, Box<dyn modules::Module>>,
     pub module_meta: HashMap<String, Value>,
+    pub current_path: Option<String>,
+    pub options: ContextOptions,
+    return_value: Option<Value>,
+    is_returning: bool,
 }
 
 impl Context {
@@ -23,6 +35,10 @@ impl Context {
             program: program.clone(),
             modules: HashMap::new(),
             module_meta: HashMap::new(),
+            current_path: None,
+            options: ContextOptions::default(),
+            return_value: None,
+            is_returning: false,
         };
 
         // 验证程序结构
@@ -88,7 +104,7 @@ impl Context {
             if let Some(obj) = program_obj.as_object() {
                 for (func_name, _) in obj {
                     // 检查是否是内置语句
-                    if is_builtin_statement(func_name) {
+                    if crate::interpreter::statements::is_builtin_statement(func_name) {
                         return Err(InterpreterError::FunctionError(
                             error_msg::function_name_conflict_builtin(func_name)
                         ));
@@ -226,8 +242,26 @@ impl Context {
         match value {
             Value::String(text) => {
                 if VariableReference::is_reference(text) {
+                    // 打印调试信息，确认变量引用格式
+                    if crate::is_debug_mode() {
+                        println!("解析变量引用: {}", text);
+                    }
+                    
                     let var_ref = VariableReference::parse(text);
+                    
+                    // 打印解析后的引用类型和变量名
+                    if crate::is_debug_mode() {
+                        println!("变量引用类型: {:?}, 变量名: {}", var_ref.ref_type, var_ref.name);
+                    }
+                    
+                    // 使用新的解析方法获取变量值
                     let resolved = var_ref.resolve_value_with_error(&self.variables, &self.constants)?;
+                    
+                    // 打印解析后的值
+                    if crate::is_debug_mode() {
+                        println!("解析结果值: {:?}", resolved);
+                    }
+                    
                     Ok(match resolved {
                         Value::String(s) => s.to_string(),
                         Value::Number(n) => n.to_string(),
@@ -375,12 +409,23 @@ impl Context {
             error_msg::module_function_not_found(&module_name, &function_name)
         ))
     }
-}
 
-// 检查是否是内置语句
-fn is_builtin_statement(name: &str) -> bool {
-    matches!(name, "var" | "echo" | "concat" | "if" | "while" | "for" | "comment" | "exec" | "switch" 
-             | "array.create" | "array.push" | "array.pop" | "array.get" | "array.set" | "array.length" | "array.slice"
-             | "object.create" | "object.get" | "object.set" | "object.has" | "object.keys" | "object.values" | "object.delete"
-             | "regex.match" | "regex.test" | "regex.replace" | "regex.split")
+    pub fn set_return_value(&mut self, value: Option<Value>) {
+        // 使用clone避免所有权问题
+        self.is_returning = value.is_some();
+        self.return_value = value;
+    }
+
+    pub fn get_return_value(&self) -> Option<&Value> {
+        self.return_value.as_ref()
+    }
+
+    pub fn is_returning(&self) -> bool {
+        self.is_returning
+    }
+
+    pub fn reset_return_status(&mut self) {
+        self.return_value = None;
+        self.is_returning = false;
+    }
 } 

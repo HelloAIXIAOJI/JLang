@@ -601,7 +601,7 @@ impl Module for JLangExternalModule {
         self.internal_module.get_name()
     }
     
-    fn get_functions(&self) -> Vec<(&'static str, fn(&[Value], &mut Context) -> Value)> {
+    fn get_functions(&self) -> Vec<(&'static str, Box<dyn Fn(&[Value], &mut Context) -> Value + Send + Sync + 'static>)> {
         self.internal_module.get_functions()
     }
     

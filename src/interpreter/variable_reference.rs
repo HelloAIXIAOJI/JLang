@@ -7,7 +7,7 @@ use super::error::{InterpreterError, Result};
 #[derive(Debug, PartialEq)]
 pub enum ReferenceType {
     Variable,    // @var.
-    Parameter,   // @params.
+    Parameter,   // @param.
     Constant,    // @const.
     Environment, // @env.
     None         // 不是引用
@@ -38,7 +38,12 @@ impl VariableReference {
                 ref_type: ReferenceType::Variable,
                 name: text.chars().skip(1).collect::<String>(),
             }
-        } else if text.starts_with("@params.") {
+        } else if text.starts_with("@param.") {
+            VariableReference {
+                ref_type: ReferenceType::Parameter,
+                name: text[7..].to_string(),
+            }
+        } else if text.starts_with("@params.") {  // 保持向后兼容
             VariableReference {
                 ref_type: ReferenceType::Parameter,
                 name: text[8..].to_string(),
@@ -66,6 +71,7 @@ impl VariableReference {
         text.starts_with("@var.") || 
         text.starts_with("$") ||
         text.starts_with("￥") ||
+        text.starts_with("@param.") ||
         text.starts_with("@params.") || 
         text.starts_with("@const.") ||
         text.starts_with("@env.")

@@ -3,6 +3,8 @@ pub mod math;
 pub mod jl_module;
 pub mod external_module;
 pub mod lua_module;
+pub mod http;
+pub mod windowwv;
 
 use serde_json::Value;
 use std::sync::Once;
@@ -12,7 +14,7 @@ use lua_module::LuaModuleLoader;
 
 pub trait Module: std::any::Any {
     fn get_name(&self) -> &'static str;
-    fn get_functions(&self) -> Vec<(&'static str, fn(&[Value], &mut Context) -> Value)>;
+    fn get_functions(&self) -> Vec<(&'static str, Box<dyn Fn(&[Value], &mut Context) -> Value + Send + Sync + 'static>)>;
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
@@ -62,7 +64,7 @@ pub fn get_module(name: &str) -> Option<Box<dyn Module>> {
     }
     
     // 检查是否存在同名外部模块冲突
-    let is_builtin = name == "io" || name == "math";
+    let is_builtin = name == "io" || name == "math" || name == "http" || name == "windowwv";
     let external_module_result = get_registry().check_module_exists(name);
     
     // 如果是内置模块且存在同名外部模块，发出警告
@@ -77,6 +79,8 @@ pub fn get_module(name: &str) -> Option<Box<dyn Module>> {
     match name {
         "io" => Some(Box::new(io::IoModule::new())),
         "math" => Some(Box::new(math::MathModule::new())),
+        "http" => Some(Box::new(http::HttpModule::new())),
+        "windowwv" => Some(Box::new(windowwv::WindowWvModule::new())),
         _ => {
             // 检查是否存在多种类型的同名外部模块
             if let Some(conflict) = get_registry().check_module_conflicts(name) {
@@ -108,4 +112,17 @@ pub fn get_module(name: &str) -> Option<Box<dyn Module>> {
 }
 
 // 重新导出execute_function供外部模块使用
-pub use crate::interpreter::statements::execute_function; 
+pub use crate::interpreter::statements::execute_function;
+
+// 在初始化内置模块的函数中添加新模块
+pub fn init_built_in_modules() -> Vec<Box<dyn Module>> {
+    let mut modules: Vec<Box<dyn Module>> = Vec::new();
+    
+    // 添加现有模块
+    modules.push(Box::new(io::IoModule::new()));
+    modules.push(Box::new(math::MathModule::new()));
+    modules.push(Box::new(http::HttpModule::new()));
+    modules.push(Box::new(windowwv::WindowWvModule::new()));
+    
+    modules
+} 

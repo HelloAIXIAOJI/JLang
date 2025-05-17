@@ -49,7 +49,7 @@ impl Module for JlModule {
         Box::leak(self.name.clone().into_boxed_str())
     }
 
-    fn get_functions(&self) -> Vec<(&'static str, fn(&[Value], &mut Context) -> Value)> {
+    fn get_functions(&self) -> Vec<(&'static str, Box<dyn Fn(&[Value], &mut Context) -> Value + Send + Sync + 'static>)> {
         Vec::new() // 我们不需要实现这个，因为我们使用自定义的函数调用机制
     }
 

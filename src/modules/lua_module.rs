@@ -207,7 +207,7 @@ impl Module for LuaModule {
         Box::leak(self.name.clone().into_boxed_str())
     }
     
-    fn get_functions(&self) -> Vec<(&'static str, fn(&[Value], &mut Context) -> Value)> {
+    fn get_functions(&self) -> Vec<(&'static str, Box<dyn Fn(&[Value], &mut Context) -> Value + Send + Sync + 'static>)> {
         Vec::new() // 使用自定义调用机制
     }
     
