@@ -1,6 +1,6 @@
 $version = (Get-Content -Path "Cargo.toml" | Select-String -Pattern 'version\s*=\s*"(.*?)"').Matches.Groups[1].Value
 if (-not $version) {
-    $version = "0.3.0"
+    $version = "1.1.1"
 }
 
 $time = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date), "China Standard Time").ToString("yyyy-MM-dd-HH-mm-ss")
