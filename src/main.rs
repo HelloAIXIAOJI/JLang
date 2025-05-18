@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::env;
 use std::fs;
 use interpreter::Interpreter;
-use modules::{load_module, get_registry, get_registry_mut};
+use modules::{get_module, get_registry, get_registry_mut};
 use std::path::Path;
 use dotenv::dotenv;
 use crate::modules::lua_module;
@@ -200,6 +200,11 @@ fn main() {
         std::process::exit(1);
     }
     
+    // 检查文件扩展名
+    if !filename.ends_with(".jl") && !filename.ends_with(".jil") {
+        eprintln!("警告: 文件 '{}' 没有 .jl 或 .jil 扩展名，但我们将尝试执行它", filename);
+    }
+    
     // 获取程序文件的绝对路径
     let absolute_path = match std::fs::canonicalize(&filename) {
         Ok(path) => path,
@@ -270,7 +275,7 @@ fn main() {
     if let Some(include_array) = program.get("include").and_then(|v| v.as_array()) {
         for module_name in include_array {
             if let Some(name) = module_name.as_str() {
-                if let Some(module) = load_module(name) {
+                if let Some(module) = get_module(name) {
                     modules.push(module);
                 } else {
                     let error_msg = format!("未找到模块 '{}'。您能凭空变出这个模块吗？", name);
@@ -349,6 +354,7 @@ fn main() {
 fn print_help() {
     println!("JiLang 解释器 v{}", VERSION);
     println!("用法: jlang [选项] 文件名");
+    println!("文件扩展名: .jl 或 .jil");
     println!("选项:");
     println!("  --debug                      启用调试模式");
     println!("  --ignore-non-critical-errors 忽略非关键错误");
@@ -415,7 +421,7 @@ fn print_available_modules() {
                     let path = entry.path();
                     if path.is_file() {
                         if let Some(ext) = path.extension() {
-                            if ext == "jl" {
+                            if ext == "jl" || ext == "jil" {
                                 if let Some(name) = path.file_stem() {
                                     if let Some(name_str) = name.to_str() {
                                         println!("  {} (JiLang模块)", name_str);

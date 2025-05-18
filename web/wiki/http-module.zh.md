@@ -158,7 +158,7 @@ URL编码后的字符串。
 
 ```json
 {
-  "var": {"raw_text": "JiLang 是一种基于JSON的语言"},
+  "var": {"raw_text": "JiLang 是一种基于JSON语法的语言"},
   "http.url_encode": ["@var.raw_text"], 
   "output": "encoded"
 }

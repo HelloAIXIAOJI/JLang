@@ -412,7 +412,7 @@ pub struct JLangModuleLoader;
 impl ModuleLoader for JLangModuleLoader {
     fn can_load(&self, path: &str) -> bool {
         let file_exists = std::path::Path::new(path).exists();
-        let has_jl_ext = path.ends_with(".jl");
+        let has_jl_ext = path.ends_with(".jl") || path.ends_with(".jil");
         
         if crate::is_debug_mode() {
             println!("检查模块文件: {} (存在: {}, 扩展名正确: {})", 
@@ -473,7 +473,7 @@ impl ModuleLoader for JLangModuleLoader {
     }
     
     fn get_supported_extensions(&self) -> Vec<&'static str> {
-        vec!["jl"]
+        vec!["jl", "jil"]
     }
     
     fn get_loader_name(&self) -> &'static str {

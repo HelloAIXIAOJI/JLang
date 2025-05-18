@@ -57,7 +57,24 @@ pub fn get_registry_mut() -> &'static mut ModuleRegistry {
     }
 }
 
-pub fn load_module(name: &str) -> Option<Box<dyn Module>> {
+pub fn get_module(name: &str) -> Option<Box<dyn Module>> {
+    if crate::is_debug_mode() {
+        println!("尝试加载模块: {}", name);
+    }
+    
+    // 检查是否存在同名外部模块冲突
+    let is_builtin = name == "io" || name == "math" || name == "http";
+    let external_module_result = get_registry().check_module_exists(name);
+    
+    // 如果是内置模块且存在同名外部模块，发出警告
+    if is_builtin && external_module_result.is_some() {
+        let (path, module_type) = external_module_result.unwrap();
+        eprintln!("警告: 发现同名模块冲突！");
+        eprintln!("内置模块 '{}' 将被优先加载，忽略外部模块文件: {}", name, path);
+        eprintln!("如需使用外部模块，请将其重命名为不同的名称。");
+    }
+    
+    // 首先尝试获取内置模块
     match name {
         "io" => Some(Box::new(io::IoModule::new())),
         "math" => Some(Box::new(math::MathModule::new())),

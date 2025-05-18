@@ -1,0 +1,18 @@
+{
+    "module_meta": {
+        "version": "1.0.0",
+        "description": "测试JL模块",
+        "author": "测试用户"
+    },
+    "program": {
+        "greet": {
+            "params": {
+                "name": "string"
+            },
+            "body": [
+                {"comment": "模块JL格式的打招呼函数"},
+                {"echo": ["模块JL: 你好，", "@param.name", "！\n"]}
+            ]
+        }
+    }
+} 

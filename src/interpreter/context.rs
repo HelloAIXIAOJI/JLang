@@ -137,7 +137,17 @@ impl Context {
     pub fn get_value(&self, text: &str) -> Option<Value> {
         if VariableReference::is_reference(text) {
             let var_ref = VariableReference::parse(text);
-            Some(var_ref.resolve_value(&self.variables, &self.constants))
+            
+            // 使用可能返回错误的版本，处理可能的失败
+            match var_ref.resolve_value_with_error(&self.variables, &self.constants) {
+                Ok(value) => Some(value),
+                Err(err) => {
+                    if crate::is_debug_mode() {
+                        println!("变量引用解析失败: {}", err);
+                    }
+                    None
+                }
+            }
         } else {
             None
         }
@@ -153,88 +163,74 @@ impl Context {
         Ok(())
     }
 
-    pub fn resolve_value(&self, value: &Value) -> String {
+    // 格式化不同类型的值，提供更友好的输出
+    pub fn format_value(&self, value: &Value) -> String {
         match value {
-            Value::String(text) => {
-                if VariableReference::is_reference(text) {
-                    let var_ref = VariableReference::parse(text);
-                    match var_ref.resolve_value(&self.variables, &self.constants) {
-                        Value::String(s) => s.to_string(),
-                        Value::Number(n) => n.to_string(),
-                        Value::Bool(b) => b.to_string(),
-                        Value::Null => "null".to_string(),
-                        Value::Array(arr) => {
-                            if is_print_full_values() {
-                                let mut result = String::new();
-                                result.push('[');
-                                for (i, item) in arr.iter().enumerate() {
-                                    if i > 0 {
-                                        result.push_str(", ");
-                                    }
-                                    result.push_str(&self.resolve_value(item));
-                                }
-                                result.push(']');
-                                result
-                            } else {
-                                "<array>".to_string()
-                            }
-                        },
-                        Value::Object(obj) => {
-                            if is_print_full_values() {
-                                let mut result = String::new();
-                                result.push('{');
-                                for (i, (key, val)) in obj.iter().enumerate() {
-                                    if i > 0 {
-                                        result.push_str(", ");
-                                    }
-                                    result.push_str(&format!("\"{}\": {}", key, self.resolve_value(val)));
-                                }
-                                result.push('}');
-                                result
-                            } else {
-                                "<object>".to_string()
-                            }
-                        },
-                    }
-                } else {
-                    text.to_string()
-                }
-            },
+            Value::String(s) => s.clone(),
             Value::Number(n) => n.to_string(),
             Value::Bool(b) => b.to_string(),
             Value::Null => "null".to_string(),
             Value::Array(arr) => {
-                if is_print_full_values() {
+                if crate::is_print_full_values() {
+                    // 完整打印数组内容
                     let mut result = String::new();
                     result.push('[');
                     for (i, item) in arr.iter().enumerate() {
                         if i > 0 {
                             result.push_str(", ");
                         }
-                        result.push_str(&self.resolve_value(item));
+                        result.push_str(&self.format_value(item));
                     }
                     result.push(']');
                     result
                 } else {
-                    "<array>".to_string()
+                    // 更具描述性的占位符
+                    format!("<array>[{}]", arr.len())
                 }
             },
             Value::Object(obj) => {
-                if is_print_full_values() {
+                if crate::is_print_full_values() {
+                    // 完整打印对象内容
                     let mut result = String::new();
                     result.push('{');
                     for (i, (key, val)) in obj.iter().enumerate() {
                         if i > 0 {
                             result.push_str(", ");
                         }
-                        result.push_str(&format!("\"{}\": {}", key, self.resolve_value(val)));
+                        result.push_str(&format!("\"{}\": {}", key, self.format_value(val)));
                     }
                     result.push('}');
                     result
                 } else {
-                    "<object>".to_string()
+                    // 更具描述性的占位符
+                    format!("<object>{{{} keys}}", obj.len())
                 }
             },
+        }
+    }
+
+    pub fn resolve_value(&self, value: &Value) -> String {
+        match value {
+            Value::String(text) => {
+                if VariableReference::is_reference(text) {
+                    // 处理变量引用
+                    let var_ref = VariableReference::parse(text);
+                    
+                    // 尝试获取变量值
+                    let resolved = var_ref.resolve_value(&self.variables, &self.constants);
+                    
+                    // 格式化结果
+                    self.format_value(&resolved)
+                } else {
+                    // 普通字符串，直接返回
+                    text.clone()
+                }
+            },
+            Value::Number(n) => n.to_string(),
+            Value::Bool(b) => b.to_string(),
+            Value::Null => "null".to_string(),
+            Value::Array(arr) => self.format_value(&Value::Array(arr.clone())),
+            Value::Object(obj) => self.format_value(&Value::Object(obj.clone())),
         }
     }
 
@@ -262,83 +258,16 @@ impl Context {
                         println!("解析结果值: {:?}", resolved);
                     }
                     
-                    Ok(match resolved {
-                        Value::String(s) => s.to_string(),
-                        Value::Number(n) => n.to_string(),
-                        Value::Bool(b) => b.to_string(),
-                        Value::Null => "null".to_string(),
-                        Value::Array(arr) => {
-                            if is_print_full_values() {
-                                let mut result = String::new();
-                                result.push('[');
-                                for (i, item) in arr.iter().enumerate() {
-                                    if i > 0 {
-                                        result.push_str(", ");
-                                    }
-                                    result.push_str(&self.resolve_value(item));
-                                }
-                                result.push(']');
-                                result
-                            } else {
-                                "<array>".to_string()
-                            }
-                        },
-                        Value::Object(obj) => {
-                            if is_print_full_values() {
-                                let mut result = String::new();
-                                result.push('{');
-                                for (i, (key, val)) in obj.iter().enumerate() {
-                                    if i > 0 {
-                                        result.push_str(", ");
-                                    }
-                                    result.push_str(&format!("\"{}\": {}", key, self.resolve_value(val)));
-                                }
-                                result.push('}');
-                                result
-                            } else {
-                                "<object>".to_string()
-                            }
-                        },
-                    })
+                    Ok(self.format_value(&resolved))
                 } else {
-                    Ok(text.to_string())
+                    Ok(text.clone())
                 }
             },
             Value::Number(n) => Ok(n.to_string()),
             Value::Bool(b) => Ok(b.to_string()),
             Value::Null => Ok("null".to_string()),
-            Value::Array(arr) => {
-                if is_print_full_values() {
-                    let mut result = String::new();
-                    result.push('[');
-                    for (i, item) in arr.iter().enumerate() {
-                        if i > 0 {
-                            result.push_str(", ");
-                        }
-                        result.push_str(&self.resolve_value(item));
-                    }
-                    result.push(']');
-                    Ok(result)
-                } else {
-                    Ok("<array>".to_string())
-                }
-            },
-            Value::Object(obj) => {
-                if is_print_full_values() {
-                    let mut result = String::new();
-                    result.push('{');
-                    for (i, (key, val)) in obj.iter().enumerate() {
-                        if i > 0 {
-                            result.push_str(", ");
-                        }
-                        result.push_str(&format!("\"{}\": {}", key, self.resolve_value(val)));
-                    }
-                    result.push('}');
-                    Ok(result)
-                } else {
-                    Ok("<object>".to_string())
-                }
-            },
+            Value::Array(arr) => Ok(self.format_value(&Value::Array(arr.clone()))),
+            Value::Object(obj) => Ok(self.format_value(&Value::Object(obj.clone()))),
         }
     }
 
@@ -427,5 +356,20 @@ impl Context {
     pub fn reset_return_status(&mut self) {
         self.return_value = None;
         self.is_returning = false;
+    }
+
+    // 解析值并返回原始Value，而不是字符串表示
+    pub fn resolve_value_raw(&self, value: &Value) -> Result<Value> {
+        match value {
+            Value::String(text) => {
+                if VariableReference::is_reference(text) {
+                    let var_ref = VariableReference::parse(text);
+                    var_ref.resolve_value_with_error(&self.variables, &self.constants)
+                } else {
+                    Ok(value.clone())
+                }
+            },
+            _ => Ok(value.clone()),
+        }
     }
 } 

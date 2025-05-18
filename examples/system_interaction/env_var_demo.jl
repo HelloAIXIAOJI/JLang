@@ -48,15 +48,30 @@
                 }},
                 {"echo": ["检测到当前用户: ", "@var.current_user", "\n"]},
                 
-                // 在循环中使用环境变量
+                // 在循环中使用环境变量 - 使用简单分割，避免复杂正则表达式
                 {"echo": ["\n5. 环境变量与路径处理：\n"]},
-                {"var": {"path_parts": []}},
-                
                 {"var": {"path_value": "@env.PATH"}},
                 {"comment": ["原始PATH值:", "@var.path_value"]},
                 
-                {"regex.split": ["@var.path_value", ";|:"]},
-                {"var": {"path_parts": "@var.result"}},
+                // 简单方法：先检测操作系统类型，然后使用不同的分隔符
+                {"var": {"is_windows": {"op": "eq", "left": "@env.OS", "right": "Windows_NT"}}},
+                {"if": {
+                    "condition": "@var.is_windows",
+                    "then": [
+                        // Windows用分号分隔
+                        {"var": {"path_separator": ";"}},
+                        {"comment": "Windows路径使用分号分隔"}
+                    ],
+                    "else": [
+                        // Unix用冒号分隔 
+                        {"var": {"path_separator": ":"}},
+                        {"comment": "Unix路径使用冒号分隔"}
+                    ]
+                }},
+                
+                // 使用简单的分隔符
+                {"var": {"split_result": {"op": "split", "string": "@var.path_value", "separator": "@var.path_separator"}}},
+                {"var": {"path_parts": "@var.split_result"}},
                 
                 {"echo": ["系统路径包含 ", "@var.path_parts.length", " 个部分\n"]},
                 {"echo": ["前5个路径部分：\n"]},

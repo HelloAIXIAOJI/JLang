@@ -53,8 +53,6 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context, f
     
     // 首先检查是否是内置语句，无论是否包含点
     match stmt_type {
-        // 忽略output，它不是真正的语句，而是函数调用结果的存储位置标记
-        "output" => return Ok(Value::Null),
         "comment" => return execute_comment_statement(args, context),
         "var" => return execute_var_statement(args, context),
         "echo" => return execute_echo_statement(args, context),
@@ -66,6 +64,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context, f
         "exec" => return execute_exec_statement(args, context),
         "switch" => return execute_switch_statement(args, context),
         "try" => return execute_try_statement(args, context),
+        "get_property" => return execute_get_property_statement(args, context),
         "array.create" => return execute_array_create(args, context),
         "array.push" => return execute_array_push(args, context),
         "array.pop" => return execute_array_pop(args, context),
@@ -277,7 +276,7 @@ pub fn execute_statement(stmt_type: &str, args: &Value, context: &mut Context, f
 
 // 检查是否是内置语句
 pub fn is_builtin_statement(name: &str) -> bool {
-    matches!(name, "var" | "echo" | "concat" | "if" | "while" | "for" | "comment" | "exec" | "switch" | "return"
+    matches!(name, "var" | "echo" | "concat" | "if" | "while" | "for" | "comment" | "exec" | "switch" | "return" | "get_property"
              | "array.create" | "array.push" | "array.pop" | "array.get" | "array.set" | "array.length" | "array.slice"
              | "object.create" | "object.get" | "object.set" | "object.has" | "object.keys" | "object.values" | "object.delete"
              | "regex.match" | "regex.test" | "regex.replace" | "regex.split")
